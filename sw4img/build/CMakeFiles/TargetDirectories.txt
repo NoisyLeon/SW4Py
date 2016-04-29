@@ -1,0 +1,3 @@
+/projects/life9360/code/SW4Py/sw4img/build/CMakeFiles/Esw4imgDatabase_ser.dir
+/projects/life9360/code/SW4Py/sw4img/build/CMakeFiles/Isw4imgDatabase.dir
+/projects/life9360/code/SW4Py/sw4img/build/CMakeFiles/Msw4imgDatabase.dir
