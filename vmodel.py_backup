@@ -4,24 +4,24 @@ import os, sys
 flush = sys.stdout.flush()
 
 hdr_dtype = np.dtype([
-    ('magic'       , 'int32'   ),
-    ('precision'   , 'int32'   ),
-    ('attenuation' , 'int32'   ),
-    ('az'          , 'float64' ),
-    ('lon0'        , 'float64' ),
-    ('lat0'        , 'float64' ),
-    ('mlen'        , 'int32'   )
-    ])
+        ('magic'       , 'int32'   ),
+        ('precision'   , 'int32'   ),
+        ('attenuation' , 'int32'   ),
+        ('az'          , 'float64' ),
+        ('lon0'        , 'float64' ),
+        ('lat0'        , 'float64' ),
+        ('mlen'        , 'int32'   )
+        ])
 
 block_hdr_dtype = np.dtype([
-    ('hh'  ,  'float64' ),
-    ('hv'  ,  'float64' ),
-    ('z0'  ,  'float64' ),
-    ('nc'  ,  'int32'   ),
-    ('ni'  ,  'int32'   ),
-    ('nj'  ,  'int32'   ),
-    ('nk'  ,  'int32'   )
-    ])
+        ('hh'  ,  'float64' ),
+        ('hv'  ,  'float64' ),
+        ('z0'  ,  'float64' ),
+        ('nc'  ,  'int32'   ),
+        ('ni'  ,  'int32'   ),
+        ('nj'  ,  'int32'   ),
+        ('nk'  ,  'int32'   )
+        ])
 
 ak135model = np.array([0.00, 2.7200, 5.8000, 3.4600, 1478.30, 599.99, 0.000,
     20.00, 2.7200, 5.8000, 3.4600, 1368.02, 599.99, 0.000,
@@ -47,6 +47,7 @@ ak135model = np.array([0.00, 2.7200, 5.8000, 3.4600, 1478.30, 599.99, 0.000,
 
 ### block model
 class Blockmodel(object):
+    
     def __init__(self, vp=None, vs=None, rho=None, Qp=None, Qs=None, vpgrad=None, vsgrad=None, rhograd=None,
             absdepth=None, x1=None, x2=None, y1=None, y2=None, z1=None, z2=None):
         self.vp=vp;
@@ -385,23 +386,6 @@ class rModel(object):
 
         return string
     
-    def AddSingleBlock(self, ni=0, nj=0, nk=0, hh=None, hv=None, z0=0.0, nc=3, xyextent=(), xzextent=(), yzextent = (), data=np.array([]),
-        vs=None, vp=None, rho=None, Qs=None, Qp=None, vsgrad=None, vpgrad=None, rhograd=None, Qsgrad=None, Qpgrad=None):
-        
-        if self.nb == 0 and hh==None and hv == None :
-            raise ValueError('Error: Please set gird spacing and initial depth!')
-        if self.nb != 0 and hh==None and hv == None :
-            hh=self.rblocks[-1].hh;
-            hv=self.rblocks[-1].hv;
-        
-        
-        rblock=rBlock(number=self.nb+1, hh=hh, hv=hv, z0=z0, nc=nc, ni=ni, nj=nj, nk=nk,
-            xyextent=(), xzextent=(), yzextent = (), data=np.array([]));
-        
-        
-        self.nb+=1;
-    
-    
     def read_hdr(self, f):
         (magic,precision,
             attenuation,az,lon0,lat0,mlen) = np.fromfile(f, hdr_dtype, 1)[0];
@@ -476,27 +460,29 @@ class rModel(object):
                                             (z0+(nk-1)*hv)*1e-3, z0*1e-3       )
         return
 
-    def write(self, filename, verbose=False ):
-        """
-        Write rfile into Model object
-        """
-        self.filename = filename
-        with open(filename, 'wb') as f:
-            self.write_hdr(f);
-            if verbose:
-                print self;
-                flush;
-            for b in np.arange(self.nb):
-                rblock = self.rblocks[b]; 
-                rblock.write_block_hdr(f);
-                if verbose:
-                    print block
-                    flush
-            for b in np.arange(self.nb):                
-                z=self.rblocks[b].data.reshape(self.rblocks[b].data.size);
-                z.tofile(f)
-        return 
-    
+        def write(self, filename, verbose=False ):
+                """
+                Write rfile into Model object
+                """
+                self.filename = filename
+                with open(filename, 'wb') as f:
+                    self.write_hdr(f);
+                    if verbose:
+                        print self;
+                        flush;
+                    for b in np.arange(self.nb):
+                        rblock = self.rblocks[b]; 
+                        rblock.write_block_hdr(f);
+                        if verbose:
+                            print block
+                            flush
+                    for b in np.arange(self.nb):                
+                        z=self.rblocks[b].data.reshape(self.rblocks[b].data.size);
+                        if b ==0:
+                            z[20]=3.3;
+                        z.tofile(f)
+                return 
+        
     
     
     
