@@ -23,7 +23,8 @@ block_hdr_dtype = np.dtype([
     ('nk'  ,  'int32'   )
     ])
 
-ak135model = np.array([0.00, 2.7200, 5.8000, 3.4600, 1478.30, 599.99, 0.000,
+ak135model = np.array([
+    0.00, 2.7200, 5.8000, 3.4600, 1478.30, 599.99, 0.000,
     20.00, 2.7200, 5.8000, 3.4600, 1368.02, 599.99, 0.000,
     20.00, 2.9200, 6.5000, 3.8500, 1368.02, 599.99, 0.000,
     35.00, 2.9200, 6.5000, 3.8500, 950.50, 394.62, 0.000,
@@ -387,7 +388,7 @@ class rModel(object):
     
     def AddSingleBlock(self, ni=0, nj=0, nk=0, hh=None, hv=None, z0=0.0, nc=3, xyextent=(), xzextent=(), yzextent = (), data=np.array([]),
         vs=None, vp=None, rho=None, Qs=None, Qp=None, vsgrad=None, vpgrad=None, rhograd=None, Qsgrad=None, Qpgrad=None):
-        
+        ya
         if self.nb == 0 and hh==None and hv == None :
             raise ValueError('Error: Please set gird spacing and initial depth!')
         if self.nb != 0 and hh==None and hv == None :
@@ -491,7 +492,7 @@ class rModel(object):
                 rblock.write_block_hdr(f);
                 if verbose:
                     print block
-                    flush
+                    flush;
             for b in np.arange(self.nb):                
                 z=self.rblocks[b].data.reshape(self.rblocks[b].data.size);
                 z.tofile(f)
