@@ -313,9 +313,7 @@ class rBlock(object):
         return;
         
 class rModel(object):
-    """
-    A class to hold rfile header and blocks
-    """
+    """ A class to hold rfile header and blocks """
     def __init__(self, filename=None, magic=1, precision = 4, attenuation = 0, az = 135, lon0= -118, lat0=37,
                  proj_str  = '+proj=longlat +datum=WGS84 +no_defs', nb = 0, rblocks=None):
         self.filename  = filename;
@@ -386,19 +384,19 @@ class rModel(object):
 
         return string
     
-    def AddSingleBlock(self, ni=0, nj=0, nk=0, hh=None, hv=None, z0=0.0, nc=3, xyextent=(), xzextent=(), yzextent = (), data=np.array([]),
+
+    def AddSingleBlock(self, ni, nj, nk, hh=None, hv=None, z0=0.0, nc=3, xyextent=(), xzextent=(), yzextent = (), data=np.array([]),
         vs=None, vp=None, rho=None, Qs=None, Qp=None, vsgrad=None, vpgrad=None, rhograd=None, Qsgrad=None, Qpgrad=None):
-        ya
+        if data.size==0 and vs==None and vp==None and rho==None:
+            raise ValueError('Error: Please specify velocity model!');
         if self.nb == 0 and hh==None and hv == None :
-            raise ValueError('Error: Please set gird spacing and initial depth!')
+            raise ValueError('Error: Please set gird spacing and initial depth!');
         if self.nb != 0 and hh==None and hv == None :
             hh=self.rblocks[-1].hh;
             hv=self.rblocks[-1].hv;
-        
-        
+            
         rblock=rBlock(number=self.nb+1, hh=hh, hv=hv, z0=z0, nc=nc, ni=ni, nj=nj, nk=nk,
-            xyextent=(), xzextent=(), yzextent = (), data=np.array([]));
-        
+                xyextent=(), xzextent=(), yzextent = (), data=np.array([]));
         
         self.nb+=1;
     
