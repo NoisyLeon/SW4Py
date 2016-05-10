@@ -499,7 +499,44 @@ class rModel(object):
                 xyextent=xyextent, xzextent=xzextent, yzextent = yzextent, data=data) )
         return
     
-    # def BlockAnomaly(self, ):
+    def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mtype=3, zmin=0, zmax=None, nb=None):
+        if nb==None:
+            for b in np.arange(self.nb-1)+1:
+                xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+                yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+                zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
+                # cArr=np.arange(self.rblocks[b].nc)
+                xArr, yArr, zArr = np.meshgrid(xArr, yArr, zArr)
+                tempdata=self.rblocks[b].data[:, :, :, mtype]
+                xlogic=(xArr>=xmin)*(xArr<=xmax)
+                ylogic=(yArr>=ymin)*(yArr<=ymax)
+                if zmax==None:
+                    zlogic=zArr>=zmin
+                else:
+                    zlogic=(zArr>=zmin)*(zArr<=zmax)
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xlogic*ylogic*zlogic
+        else:
+            nb=nb-1
+            # continue here
+            xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+                yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+                zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
+                # cArr=np.arange(self.rblocks[b].nc)
+                xArr, yArr, zArr = np.meshgrid(xArr, yArr, zArr)
+                tempdata=self.rblocks[b].data[:, :, :, mtype]
+                xlogic=(xArr>=xmin)*(xArr<=xmax)
+                ylogic=(yArr>=ymin)*(yArr<=ymax)
+                if zmax==None:
+                    zlogic=zArr>=zmin
+                else:
+                    zlogic=(zArr>=zmin)*(zArr<=zmax)
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xlogic*ylogic*zlogic
+                
+                
+                
+                
+                
+                
         
     
     
