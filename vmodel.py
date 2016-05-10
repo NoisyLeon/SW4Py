@@ -465,11 +465,19 @@ class rModel(object):
                 vs=vs/1000.
             if vp ==None:
                 vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4 #Brocher Crust
+            if vp < 100.:
+                warnings.warn('Double check vp, the unit is m/s!', UserWarning, stacklevel=1)
+            else:
+                vp=vp/1000.
             if rho==None:
                 rho=1.6612*vp-0.4721*vp**2+0.0671*vp**3-0.0043*vp**4+0.000106*vp**5 #Brocher Crust
-            vs=vs*1000.
-            vp=vp*1000.
-            rho=rho*1000.
+            if vs < 100.:
+                vs=vs*1000.
+            if vp < 100.:
+                vp=vp*1000.
+            if rho < 100.:
+                rho=rho*1000.
+            
             if vsgrad==None:
                 vsArr = np.ones(nk)*vs
             else:
@@ -512,6 +520,9 @@ class rModel(object):
         """
         Implement ak135 model
         """
+        if zmax>660.:
+            raise ValueError('Depth is too large for Cartesian simulation.')
+        zmax=zmax*1000.
         if self.nb == 0 and hh==None and hv == None :
             raise ValueError('Error: Gird spacing not specified!')
         if self.nb != 0 and hh==None and hv == None :
@@ -532,61 +543,83 @@ class rModel(object):
         for i in np.arange(21):
             if modelArr[i,0]==modelArr[i+1,0]:
                 continue
-            if modelArr[i,0]<zmin:
+            if modelArr[i+1,0]<zmin:
                 continue
             if zmax <= modelArr[i+1,0]:
                 if i==0:
                     rho=modelArr[0,1]
                     vp=modelArr[0,2]
                     vs=modelArr[0,3]
-                    Qp=modelArr[0,4]+(modelArr[1,4]-modelArr[0,4])*zmin/modelArr[1,0]
+                    Qp=modelArr[0,4]+(modelArr[1,4]-modelArr[0,4])/modelArr[1,0] * zmin
                     Qs=modelArr[0,5]
                     nk=int( (zmax-zmin) /hv) + 1
                     Qpgrad = (modelArr[1,4]-modelArr[0,4])/modelArr[1,0]
                     self.AddSingleBlock(ni=ni, nj=nj, nk=nk, hh=hh, hv=hv, z0=zmin, vs=vs, vp=vp, rho=rho, Qs=Qs, Qp=Qp, Qpgrad=Qpgrad)
                 else:
                     z1=modelArr[i,0]
-                    rho=modelArr[i,1]
-                    vp=modelArr[i,2]
-                    vs=modelArr[i,3]
-                    Qp=modelArr[i,4]
-                    Qs=modelArr[i,5]
+                    rho1=modelArr[i,1]
+                    vp1=modelArr[i,2]
+                    vs1=modelArr[i,3]
+                    Qp1=modelArr[i,4]
+                    Qs1=modelArr[i,5]
                     z2=modelArr[i+1,0]
                     rho2=modelArr[i+1,1]
                     vp2=modelArr[i+1,2]
                     vs2=modelArr[i+1,3]
                     Qp2=modelArr[i+1,4]
                     Qs2=modelArr[i+1,5]
-                    vpgrad=(vp2-vp)/(z2-z1)
-                    vsgrad=(vs2-vs)/(z2-z1)
-                    rhograd=(rho2-rho)/(z2-z1)
-                    Qpgrad=(Qp2-Qp)/(z2-z1)
-                    Qsgrad=(Qs2-Qs)/(z2-z1)
-                    
-                    self.append(Blockmodel(vp=vp, vs=vs, rho=rho, Qp=Qp, Qs=Qs, vpgrad=vpgrad, vsgrad=vsgrad,
-                            rhograd=rhograd, z1=z1, z2=zmax))
+                    vpgrad=(vp2-vp1)/(z2-z1)
+                    vsgrad=(vs2-vs1)/(z2-z1)
+                    rhograd=(rho2-rho1)/(z2-z1)
+                    Qpgrad=(Qp2-Qp1)/(z2-z1)
+                    Qsgrad=(Qs2-Qs1)/(z2-z1)
+                    if zmin <= z1:
+                        nk=int( (zmax-z1) /hv) + 1
+                        self.AddSingleBlock(ni=ni, nj=nj, nk=nk, hh=hh, hv=hv, z0=z1, vs=vs1, vp=vp1, rho=rho1, Qs=Qs1, Qp=Qp1,
+                                vsgrad=vsgrad, vpgrad=vpgrad, rhograd=rhograd, Qsgrad=Qsgrad, Qpgrad=Qpgrad)
+                    else:
+                        vp = vp1 + vpgrad * (zmin-z1)
+                        vs = vs1 + vsgrad * (zmin-z1)
+                        rho = rho1 + rhograd * (zmin-z1)
+                        Qp = Qp1 + Qpgrad * (zmin-z1)
+                        Qs = Qs1 + Qsgrad * (zmin-z1)
+                        nk=int( (zmax-zmin) /hv) + 1
+                        self.AddSingleBlock(ni=ni, nj=nj, nk=nk, hh=hh, hv=hv, z0=zmin, vs=vs, vp=vp, rho=rho, Qs=Qs, Qp=Qp,
+                                vsgrad=vsgrad, vpgrad=vpgrad, rhograd=rhograd, Qsgrad=Qsgrad, Qpgrad=Qpgrad)
                 break
             z1=modelArr[i,0]
-            rho=modelArr[i,1]
-            vp=modelArr[i,2]
-            vs=modelArr[i,3]
-            Qp=modelArr[i,4]
-            Qs=modelArr[i,5]
+            rho1=modelArr[i,1]
+            vp1=modelArr[i,2]
+            vs1=modelArr[i,3]
+            Qp1=modelArr[i,4]
+            Qs1=modelArr[i,5]
             z2=modelArr[i+1,0]
             rho2=modelArr[i+1,1]
             vp2=modelArr[i+1,2]
             vs2=modelArr[i+1,3]
-            vpgrad=(vp2-vp)/(zmax-z1)
-            vsgrad=(vs2-vs)/(zmax-z1)
-            rhograd=(rho2-rho)/(zmax-z1)
-            self.append(Blockmodel(vp=vp, vs=vs, rho=rho, Qp=Qp, Qs=Qs, vpgrad=vpgrad, vsgrad=vsgrad,
-                            rhograd=rhograd, z1=z1, z2=z2))
+            Qp2=modelArr[i+1,4]
+            Qs2=modelArr[i+1,5]
+            vpgrad=(vp2-vp1)/(z2-z1)
+            vsgrad=(vs2-vs1)/(z2-z1)
+            rhograd=(rho2-rho1)/(z2-z1)
+            Qpgrad=(Qp2-Qp1)/(z2-z1)
+            Qsgrad=(Qs2-Qs1)/(z2-z1)
             
-        
-        
-        
-        
-    
+            if z1 < zmin:
+                vp = vp1 + vpgrad * (zmin-z1)
+                vs = vs1 + vsgrad * (zmin-z1)
+                rho = rho1 + rhograd * (zmin-z1)
+                Qp = Qp1 + Qpgrad * (zmin-z1)
+                Qs = Qs1 + Qsgrad * (zmin-z1)
+                nk=int( (z2-zmin) /hv) + 1
+                self.AddSingleBlock(ni=ni, nj=nj, nk=nk, hh=hh, hv=hv, z0=zmin, vs=vs, vp=vp, rho=rho, Qs=Qs, Qp=Qp,
+                                    vsgrad=vsgrad, vpgrad=vpgrad, rhograd=rhograd, Qsgrad=Qsgrad, Qpgrad=Qpgrad)
+            else:
+                nk=int( (z2-z1) /hv) + 1
+                self.AddSingleBlock(ni=ni, nj=nj, nk=nk, hh=hh, hv=hv, z0=z1, vs=vs1, vp=vp1, rho=rho1, Qs=Qs1, Qp=Qp1,
+                                    vsgrad=vsgrad, vpgrad=vpgrad, rhograd=rhograd, Qsgrad=Qsgrad, Qpgrad=Qpgrad)
+        return
+
     
     def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mtype=2, zmin=0, zmax=None, nb=None):
         dictparam={0: 'density', 1 : 'Vp', 2 : 'Vs', 3 : 'Qs', 4 : 'Qp'}
