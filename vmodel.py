@@ -132,6 +132,7 @@ class BlockLst(object):
         return
 
     def ak135(self, zmax=410.):
+        
         if zmax>660.:
             raise ValueError('Depth is too large for Cartesian simulation.')
         zmax=zmax*1000.
@@ -153,33 +154,40 @@ class BlockLst(object):
                     self.append(Blockmodel(vp=vp, vs=vs, rho=rho, Qp=Qp, Qs=Qs, z1=0, z2=zmax))
                 else:
                     z1=modelArr[i,0]
-                    rho=modelArr[i,1]
-                    vp=modelArr[i,2]
-                    vs=modelArr[i,3]
+                    rho1=modelArr[i,1]
+                    vp1=modelArr[i,2]
+                    vs1=modelArr[i,3]
                     Qp=modelArr[i,4]
                     Qs=modelArr[i,5]
+                    z2=modelArr[i+1,0]
                     rho2=modelArr[i+1,1]
                     vp2=modelArr[i+1,2]
                     vs2=modelArr[i+1,3]
-                    vpgrad=(vp2-vp)/(zmax-z1)
-                    vsgrad=(vs2-vs)/(zmax-z1)
-                    rhograd=(rho2-rho)/(zmax-z1)
+                    vpgrad=(vp2-vp1)/(z2-z1)
+                    vsgrad=(vs2-vs1)/(z2-z1)
+                    rhograd=(rho2-rho1)/(z2-z1)
+                    vp=vp1-z1*vpgrad
+                    vs=vs1-z1*vsgrad
+                    rho=rho1-z1*rhograd
                     self.append(Blockmodel(vp=vp, vs=vs, rho=rho, Qp=Qp, Qs=Qs, vpgrad=vpgrad, vsgrad=vsgrad,
                             rhograd=rhograd, z1=z1, z2=zmax))
                 break
             z1=modelArr[i,0]
-            rho=modelArr[i,1]
-            vp=modelArr[i,2]
-            vs=modelArr[i,3]
+            rho1=modelArr[i,1]
+            vp1=modelArr[i,2]
+            vs1=modelArr[i,3]
             Qp=modelArr[i,4]
             Qs=modelArr[i,5]
             z2=modelArr[i+1,0]
             rho2=modelArr[i+1,1]
             vp2=modelArr[i+1,2]
             vs2=modelArr[i+1,3]
-            vpgrad=(vp2-vp)/(zmax-z1)
-            vsgrad=(vs2-vs)/(zmax-z1)
-            rhograd=(rho2-rho)/(zmax-z1)
+            vpgrad=(vp2-vp1)/(z2-z1)
+            vsgrad=(vs2-vs1)/(z2-z1)
+            rhograd=(rho2-rho1)/(z2-z1)
+            vp=vp1-z1*vpgrad
+            vs=vs1-z1*vsgrad
+            rho=rho1-z1*rhograd
             self.append(Blockmodel(vp=vp, vs=vs, rho=rho, Qp=Qp, Qs=Qs, vpgrad=vpgrad, vsgrad=vsgrad,
                             rhograd=rhograd, z1=z1, z2=z2))
         return
@@ -226,7 +234,6 @@ class BlockLst(object):
             f.write(InputStr)
         f.close()
         return
-    
     
 ### rfile model
 class rBlock(object):
@@ -415,8 +422,6 @@ class rModel(object):
         
     def AddSingleBlock(self, ni, nj, nk, hh=None, hv=None, z0=None, data=np.array([]),
         vs=None, vp=None, rho=None, Qs=None, Qp=None, vsgrad=None, vpgrad=None, rhograd=None, Qsgrad=None, Qpgrad=None):
-        if self.nb == 0:
-            raise ValueError('Error: First block must be topography!')
         if self.attenuation ==1:
             nc=5
         else:
@@ -432,6 +437,10 @@ class rModel(object):
             hv = hh
         if hh == None and hv !=None:
             hh = hv
+        if self.nb == 0:
+            self.AddTopoBlock(ni=ni, nj=nj, hh=hh)
+            print 'No topography block, added automatically!'
+            # raise ValueError('Error: First block must be topography!')    
         if self.nb==1 and z0==None:
             z0=0
         if self.nb >1 and z0==None:
@@ -499,47 +508,255 @@ class rModel(object):
                 xyextent=xyextent, xzextent=xzextent, yzextent = yzextent, data=data) )
         return
     
-    def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mtype=3, zmin=0, zmax=None, nb=None):
+    def ak135(self, ni, nj, zmin=0., zmax=410.,  hh=None, hv=None):
+        """
+        Implement ak135 model
+        """
+        if self.nb == 0 and hh==None and hv == None :
+            raise ValueError('Error: Gird spacing not specified!')
+        if self.nb != 0 and hh==None and hv == None :
+            hh=self.rblocks[-1].hh
+            hv=self.rblocks[-1].hv
+        if hh !=None and hv == None:
+            hv = hh
+        if hh == None and hv !=None:
+            hh = hv
+        if self.nb == 0:
+            self.AddTopoBlock(ni=ni, nj=nj, hh=hh)
+            print 'No topography block, added automatically!'
+        modelArr=ak135model.reshape((21,7))
+        modelArr[:,0]=modelArr[:,0]*1000.
+        modelArr[:,1]=modelArr[:,1]*1000.
+        modelArr[:,2]=modelArr[:,2]*1000.
+        modelArr[:,3]=modelArr[:,3]*1000.
+        for i in np.arange(21):
+            if modelArr[i,0]==modelArr[i+1,0]:
+                continue
+            if modelArr[i,0]<zmin:
+                continue
+            if zmax <= modelArr[i+1,0]:
+                if i==0:
+                    rho=modelArr[0,1]
+                    vp=modelArr[0,2]
+                    vs=modelArr[0,3]
+                    Qp=modelArr[0,4]+(modelArr[1,4]-modelArr[0,4])*zmin/modelArr[1,0]
+                    Qs=modelArr[0,5]
+                    nk=int( (zmax-zmin) /hv) + 1
+                    Qpgrad = (modelArr[1,4]-modelArr[0,4])/modelArr[1,0]
+                    self.AddSingleBlock(ni=ni, nj=nj, nk=nk, hh=hh, hv=hv, z0=zmin, vs=vs, vp=vp, rho=rho, Qs=Qs, Qp=Qp, Qpgrad=Qpgrad)
+                else:
+                    z1=modelArr[i,0]
+                    rho=modelArr[i,1]
+                    vp=modelArr[i,2]
+                    vs=modelArr[i,3]
+                    Qp=modelArr[i,4]
+                    Qs=modelArr[i,5]
+                    z2=modelArr[i+1,0]
+                    rho2=modelArr[i+1,1]
+                    vp2=modelArr[i+1,2]
+                    vs2=modelArr[i+1,3]
+                    Qp2=modelArr[i+1,4]
+                    Qs2=modelArr[i+1,5]
+                    vpgrad=(vp2-vp)/(z2-z1)
+                    vsgrad=(vs2-vs)/(z2-z1)
+                    rhograd=(rho2-rho)/(z2-z1)
+                    Qpgrad=(Qp2-Qp)/(z2-z1)
+                    Qsgrad=(Qs2-Qs)/(z2-z1)
+                    
+                    self.append(Blockmodel(vp=vp, vs=vs, rho=rho, Qp=Qp, Qs=Qs, vpgrad=vpgrad, vsgrad=vsgrad,
+                            rhograd=rhograd, z1=z1, z2=zmax))
+                break
+            z1=modelArr[i,0]
+            rho=modelArr[i,1]
+            vp=modelArr[i,2]
+            vs=modelArr[i,3]
+            Qp=modelArr[i,4]
+            Qs=modelArr[i,5]
+            z2=modelArr[i+1,0]
+            rho2=modelArr[i+1,1]
+            vp2=modelArr[i+1,2]
+            vs2=modelArr[i+1,3]
+            vpgrad=(vp2-vp)/(zmax-z1)
+            vsgrad=(vs2-vs)/(zmax-z1)
+            rhograd=(rho2-rho)/(zmax-z1)
+            self.append(Blockmodel(vp=vp, vs=vs, rho=rho, Qp=Qp, Qs=Qs, vpgrad=vpgrad, vsgrad=vsgrad,
+                            rhograd=rhograd, z1=z1, z2=z2))
+            
+        
+        
+        
+        
+    
+    
+    def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mtype=2, zmin=0, zmax=None, nb=None):
+        dictparam={0: 'density', 1 : 'Vp', 2 : 'Vs', 3 : 'Qs', 4 : 'Qp'}
+        if nb!=1:
+            print 'Adding block anomaly to',dictparam[mtype],'!'
+        else:
+            print 'Adding block anomaly to topography !'
         if nb==None:
             for b in np.arange(self.nb-1)+1:
                 xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
                 yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
-                zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
-                # cArr=np.arange(self.rblocks[b].nc)
-                xArr, yArr, zArr = np.meshgrid(xArr, yArr, zArr)
+                zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv + self.rblocks[b].z0
+                # meshgrid notes: 
+                # In the 3-D case with inputs of length M, N and P,
+                # outputs are of shape (N, M, P) for 'xy' indexing and (M, N, P) for 'ij' indexing.
+                xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
                 tempdata=self.rblocks[b].data[:, :, :, mtype]
-                xlogic=(xArr>=xmin)*(xArr<=xmax)
-                ylogic=(yArr>=ymin)*(yArr<=ymax)
+                xlogic=(xgrid>=xmin)*(xgrid<=xmax)
+                ylogic=(ygrid>=ymin)*(ygrid<=ymax)
                 if zmax==None:
-                    zlogic=zArr>=zmin
+                    zlogic=zgrid>=zmin
                 else:
-                    zlogic=(zArr>=zmin)*(zArr<=zmax)
+                    zlogic=(zgrid>=zmin)*(zgrid<=zmax)
                 self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xlogic*ylogic*zlogic
         else:
-            nb=nb-1
-            # continue here
+            b=nb-1
             xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
-                yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
-                zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
-                # cArr=np.arange(self.rblocks[b].nc)
-                xArr, yArr, zArr = np.meshgrid(xArr, yArr, zArr)
-                tempdata=self.rblocks[b].data[:, :, :, mtype]
-                xlogic=(xArr>=xmin)*(xArr<=xmax)
-                ylogic=(yArr>=ymin)*(yArr<=ymax)
+            yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+            zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
+            # cArr=np.arange(self.rblocks[b].nc)
+            xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
+            tempdata=self.rblocks[b].data[:, :, :, mtype]
+            xlogic=(xgrid>=xmin)*(xgrid<=xmax)
+            ylogic=(ygrid>=ymin)*(ygrid<=ymax)
+            if b!=0:
                 if zmax==None:
-                    zlogic=zArr>=zmin
+                   zlogic=zgrid>=zmin
                 else:
-                    zlogic=(zArr>=zmin)*(zArr<=zmax)
-                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xlogic*ylogic*zlogic
-                
-                
-                
-                
-                
-                
+                   zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+            else:
+                zlogic=1.;
+            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xlogic*ylogic*zlogic
+        return
+    
+    def CylinderHomoAnomaly(self, x0, y0, R, dm, mtype=2, zmin=0, zmax=None, nb=None):
+        dictparam={0: 'density', 1 : 'Vp', 2 : 'Vs', 3 : 'Qs', 4 : 'Qp'}
+        if nb!=1:
+            print 'Adding homogeneous cynlinder anomaly to',dictparam[mtype],'!'
+        else:
+            print 'Adding homogeneous cynlinder to topography !'
+        if nb==None:
+            for b in np.arange(self.nb-1)+1:
+                xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+                yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+                zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv + self.rblocks[b].z0
+                # meshgrid notes: 
+                # In the 3-D case with inputs of length M, N and P,
+                # outputs are of shape (N, M, P) for 'xy' indexing and (M, N, P) for 'ij' indexing.
+                xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
+                tempdata=self.rblocks[b].data[:, :, :, mtype]
+                dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+                Rlogic = dArr < R;
+                if zmax==None:
+                    zlogic=zgrid>=zmin
+                else:
+                    zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rlogic*zlogic
+        else:
+            b=nb-1
+            xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+            yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+            zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
+            # cArr=np.arange(self.rblocks[b].nc)
+            xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
+            tempdata=self.rblocks[b].data[:, :, :, mtype]
+            dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+            Rlogic = dArr < R;
+            if b!=0:
+                if zmax==None:
+                   zlogic=zgrid>=zmin
+                else:
+                   zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+            else:
+                zlogic=1.;
+            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rlogic*zlogic
+        return
         
+    def CylinderLinearAnomaly(self, x0, y0, R, dm, mtype=2, zmin=0, zmax=None, nb=None):
+        dictparam={0: 'density', 1 : 'Vp', 2 : 'Vs', 3 : 'Qs', 4 : 'Qp'}
+        if nb!=1:
+            print 'Adding linear cynlinder anomaly to',dictparam[mtype],'!'
+        else:
+            print 'Adding linear cynlinder to topography !'
+        if nb==None:
+            for b in np.arange(self.nb-1)+1:
+                xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+                yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+                zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv + self.rblocks[b].z0
+                # meshgrid notes: 
+                # In the 3-D case with inputs of length M, N and P,
+                # outputs are of shape (N, M, P) for 'xy' indexing and (M, N, P) for 'ij' indexing.
+                xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
+                tempdata=self.rblocks[b].data[:, :, :, mtype]
+                delD = R - np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2);
+                if zmax==None:
+                    zlogic=zgrid>=zmin
+                else:
+                    zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zlogic *0.5 * (np.sign(delD) + 1) * delD/R 
+        else:
+            b=nb-1
+            xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+            yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+            zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
+            # cArr=np.arange(self.rblocks[b].nc)
+            xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
+            tempdata=self.rblocks[b].data[:, :, :, mtype]
+            delD = R - np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2);
+            if b!=0:
+                if zmax==None:
+                   zlogic=zgrid>=zmin
+                else:
+                   zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+            else:
+                zlogic=1.;
+            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zlogic *0.5 * (np.sign(delD) + 1) * delD/R 
+        return
     
-    
+    def CylinderCosineAnomaly(self, x0, y0, R, dm, mtype=2, zmin=0, zmax=None, nb=None):
+        dictparam={0: 'density', 1 : 'Vp', 2 : 'Vs', 3 : 'Qs', 4 : 'Qp'}
+        if nb!=1:
+            print 'Adding linear cynlinder anomaly to',dictparam[mtype],'!'
+        else:
+            print 'Adding linear cynlinder to topography !'
+        if nb==None:
+            for b in np.arange(self.nb-1)+1:
+                xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+                yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+                zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv + self.rblocks[b].z0
+                # meshgrid notes: 
+                # In the 3-D case with inputs of length M, N and P,
+                # outputs are of shape (N, M, P) for 'xy' indexing and (M, N, P) for 'ij' indexing.
+                xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
+                tempdata=self.rblocks[b].data[:, :, :, mtype]
+                dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+                delD = R - dArr
+                if zmax==None:
+                    zlogic=zgrid>=zmin
+                else:
+                    zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zlogic *0.5 * (np.sign(delD) + 1) * ( 1+np.cos( np.pi* dArr / R ) ) 
+        else:
+            b=nb-1
+            xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+            yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+            zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
+            # cArr=np.arange(self.rblocks[b].nc)
+            xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
+            tempdata=self.rblocks[b].data[:, :, :, mtype]
+            dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+            delD = R - dArr
+            if b!=0:
+                if zmax==None:
+                   zlogic=zgrid>=zmin
+                else:
+                   zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+            else:
+                zlogic=1.;
+            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zlogic *0.5 * (np.sign(delD) + 1) * ( 1+np.cos( np.pi* dArr / R ) ) 
+        return
     
     def read_hdr(self, f):
         (magic,precision,
