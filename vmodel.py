@@ -501,8 +501,8 @@ class rModel(object):
                     QpArr=np.ones(nk)*Qp
                 else:
                     QpArr = np.ones(nk)*Qp + np.arange(nk)*hv*Qpgrad
-                Vprofile = np.append(Vprofile, QsArr)
                 Vprofile = np.append(Vprofile, QpArr)
+                Vprofile = np.append(Vprofile, QsArr)
             Vprofile = Vprofile.reshape(nc, nk)
             Vprofile = Vprofile.T
             Vprofile = Vprofile.reshape(nc*nk)
@@ -621,10 +621,11 @@ class rModel(object):
         return
 
     
-    def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mtype=2, zmin=0, zmax=None, nb=None):
-        dictparam={0: 'density', 1 : 'Vp', 2 : 'Vs', 3 : 'Qs', 4 : 'Qp'}
+    def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mname='vs', zmin=0, zmax=None, nb=None):
+        dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
+        mtype=dictparam[mname]
         if nb!=1:
-            print 'Adding block anomaly to',dictparam[mtype],'!'
+            print 'Adding block anomaly to',mname,'!'
         else:
             print 'Adding block anomaly to topography !'
         if nb==None:
@@ -664,10 +665,11 @@ class rModel(object):
             self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xlogic*ylogic*zlogic
         return
     
-    def CylinderHomoAnomaly(self, x0, y0, R, dm, mtype=2, zmin=0, zmax=None, nb=None):
-        dictparam={0: 'density', 1 : 'Vp', 2 : 'Vs', 3 : 'Qs', 4 : 'Qp'}
+    def CylinderHomoAnomaly(self, x0, y0, R, dm, mname='vs', zmin=0, zmax=None, nb=None):
+        dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
+        mtype=dictparam[mname]
         if nb!=1:
-            print 'Adding homogeneous cynlinder anomaly to',dictparam[mtype],'!'
+            print 'Adding homogeneous cynlinder anomaly to',mname,'!'
         else:
             print 'Adding homogeneous cynlinder to topography !'
         if nb==None:
@@ -707,10 +709,11 @@ class rModel(object):
             self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rlogic*zlogic
         return
         
-    def CylinderLinearAnomaly(self, x0, y0, R, dm, mtype=2, zmin=0, zmax=None, nb=None):
-        dictparam={0: 'density', 1 : 'Vp', 2 : 'Vs', 3 : 'Qs', 4 : 'Qp'}
+    def CylinderLinearAnomaly(self, x0, y0, R, dm, mname='vs', zmin=0, zmax=None, nb=None):
+        dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
+        mtype=dictparam[mname]
         if nb!=1:
-            print 'Adding linear cynlinder anomaly to',dictparam[mtype],'!'
+            print 'Adding linear cynlinder anomaly to',mname,'!'
         else:
             print 'Adding linear cynlinder to topography !'
         if nb==None:
@@ -748,10 +751,11 @@ class rModel(object):
             self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zlogic *0.5 * (np.sign(delD) + 1) * delD/R 
         return
     
-    def CylinderCosineAnomaly(self, x0, y0, R, dm, mtype=2, zmin=0, zmax=None, nb=None):
-        dictparam={0: 'density', 1 : 'Vp', 2 : 'Vs', 3 : 'Qs', 4 : 'Qp'}
+    def CylinderCosineAnomaly(self, x0, y0, R, dm, mname='vs', zmin=0, zmax=None, nb=None):
+        dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
+        mtype=dictparam[mname]
         if nb!=1:
-            print 'Adding linear cynlinder anomaly to',dictparam[mtype],'!'
+            print 'Adding linear cynlinder anomaly to',mname,'!'
         else:
             print 'Adding linear cynlinder to topography !'
         if nb==None:
