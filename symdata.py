@@ -4,7 +4,6 @@ import numpy as np
 import pyasdf 
 import matplotlib.pyplot as plt
 import stations
-import obspy.geodetics as obsGeo
 import obspy
 import pyaftan as ftan  # Comment this line if you do not have pyaftan
 import numpy as np
@@ -16,7 +15,7 @@ import copy
 import scipy.signal
 import numexpr as npr
 from functools import partial
-import multiprocessing as mp
+# import multiprocessing as mp
 import math
 import time
 import shutil
@@ -115,6 +114,7 @@ class ftanParam(object):
         self.ierr_2=0
         # Flag for existence of predicted phase dispersion curve
         self.preflag=False
+        self.station_id=None
 
     def writeDISP(self, fnamePR):
         """
@@ -134,7 +134,6 @@ class ftanParam(object):
             outArrf10=outArrf10.reshape((8,Lf10));
             outArrf10=outArrf10.T;
             np.savetxt(f10, outArrf10, fmt='%4d %10.4lf %10.4lf %12.4lf %12.4lf %12.4lf %12.4lf %8.3lf');
-
         if self.nfout2_1!=0:
             f11=fnamePR+'_1_DISP.1'
             Lf11=self.nfout2_1;
@@ -215,63 +214,56 @@ class ftanParam(object):
             plt.title('Phase Velocity Comparison')
         return
 
-class snrParam(object):
+class ftanLst(object):
     """
-    SNR parameters:
-        suffix: p=positve lag;  n=negative lag; s=symmetric lag
-        amp: largest amplitude measurement for each period
-        snr: SNR measurement for each period
-        nrms: noise rms measurement for each period
-        oper: observed period
-
+    An object contains a ftanparam list(a list of ftanParam object) information several methods for ftanparam list related analysis.
+        ftanparams: list of ftanParam
     """
-    def __init__(self):
-        self.amp_p=np.array([])
-        self.snr_p=np.array([])
-        self.nrms_p=np.array([])
-        self.oper_p=np.array([])
-        self.amp_n=np.array([])
-        self.snr_n=np.array([])
-        self.nrms_n=np.array([])
-        self.oper_n=np.array([])
-        self.amp_s=np.array([])
-        self.snr_s=np.array([])
-        self.nrms_s=np.array([])
-        self.oper_s=np.array([])
+    def __init__(self,ftanparams=None):
+        self.ftanparams=[]
+        if isinstance(ftanparams, ftanParam):
+            ftanparams = [ftanparams]
+        if ftanparams:
+            self.ftanparams.extend(ftanparams)
 
-    def writeAMPSNR(self, fnamePR):
+    def __add__(self, other):
         """
-        writeAMPSNR:
-        Write output SNR parameters to text files
-        _pos_amp_snr - positive lag
-        _neg_amp_snr - negative lag
-        _amp_snr     - symmetric lag
+        Add two ftanLst with self += other.
         """
-        len_p=len(self.amp_p)
-        len_n=len(self.amp_n)
-        len_s=len(self.amp_s)
-        if len_p!=0:
-            fpos=fnamePR+'_pos_amp_snr'
-            f=open(fpos,'w')
-            for i in np.arange(len_p):
-                tempstr='%8.4f   %.5g  %8.4f  \n' %(  self.oper_p[i] , self.amp_p[i],  self.snr_p[i] )
-                f.writelines(tempstr)
-            f.close()
-        if len_n!=0:
-            fneg=fnamePR+'_neg_amp_snr'
-            f=open(fneg,'w')
-            for i in np.arange(len_n):
-                tempstr='%8.4f   %.5g  %8.4f  \n' %(   self.oper_n[i] , self.amp_n[i],  self.snr_n[i] )
-                f.writelines(tempstr)
-            f.close()
-        if len_s!=0:
-            fsym=fnamePR+'_amp_snr'
-            f=open(fsym,'w')
-            for i in np.arange(len_s):
-                tempstr='%8.4f   %.5g  %8.4f  \n' %(   self.oper_s[i] , self.amp_s[i],  self.snr_s[i] )
-                f.writelines(tempstr)
-            f.close()
-        return
+        if isinstance(other, ftanParam):
+            other = ftanLst([other])
+        if not isinstance(other, ftanLst):
+            raise TypeError
+        ftanparams = self.ftanparams + other.ftanparams
+        return self.__class__(ftanparams=ftanparams)
+
+    def __len__(self):
+        """
+        Return the number of Traces in the ftanLst object.
+        """
+        return len(self.ftanparams)
+
+    def __getitem__(self, index):
+        """
+        __getitem__ method of obspy.Stream objects.
+        :return: Trace objects
+        """
+        if isinstance(index, slice):
+            return self.__class__(ftanparams=self.ftanparams.__getitem__(index))
+        else:
+            return self.ftanparams.__getitem__(index)
+
+    def append(self, ftanparam):
+        """
+        Append a single ftanParam object to the current ftanLst object.
+        """
+        if isinstance(ftanparam, ftanParam):
+            self.ftanparams.append(ftanparam)
+        else:
+            msg = 'Append only supports a single ftanParam object as an argument.'
+            raise TypeError(msg)
+        return self
+
 
 class sw4trace(obspy.core.trace.Trace):
     """
@@ -295,7 +287,7 @@ class sw4trace(obspy.core.trace.Trace):
         self.data=self.data[::-1]
         return
     def aftan(self, pmf=True, piover4=-1.0, vmin=1.5, vmax=5.0, tmin=4.0, \
-        tmax=30.0, tresh=20.0, ffact=1.0, taperl=1.0, snr=0.2, fmatch=1.0,phvelname='', predV=np.array([]) ):
+        tmax=30.0, tresh=20.0, ffact=1.0, taperl=1.0, snr=0.2, fmatch=1.0, phvelname='', predV=np.array([]) ):
 
         """ (Automatic Frequency-Time ANalysis) aftan analysis:
         -----------------------------------------------------------------------------------------------------
@@ -313,6 +305,7 @@ class sw4trace(obspy.core.trace.Trace):
         fmatch      - factor to length of phase matching window
         fname       - SAC file name
         phvelname   - predicted phase velocity file name
+        predV          - predicted phase velocity curve
         
         Output:
         self.ftanparam, a object of ftanParam class, to store output aftan results
@@ -337,30 +330,26 @@ class sw4trace(obspy.core.trace.Trace):
         nprpv = 0
         phprper=np.zeros(300)
         phprvel=np.zeros(300)
-        
         if predV.size != 0:
             phprper=predV[:,0]
             phprvel=predV[:,1]
             nprpv = predV[:,0].size
-            phprper=np.append(phprper,np.zeros(300-phprper.size))
-            phprvel=np.append(phprvel,np.zeros(300-phprvel.size))
+            phprper=np.append( phprper, np.zeros(300-phprper.size) )
+            phprvel=np.append( phprvel, np.zeros(300-phprvel.size) )
             self.ftanparam.preflag=True
         elif os.path.isfile(phvelname):
             php=np.loadtxt(phvelname)
             phprper=php[:,0]
             phprvel=php[:,1]
             nprpv = php[:,0].size
-            phprper=np.append(phprper,np.zeros(300-phprper.size))
-            phprvel=np.append(phprvel,np.zeros(300-phprvel.size))
+            phprper=np.append( phprper, np.zeros(300-phprper.size) )
+            phprvel=np.append( phprvel, np.zeros(300-phprvel.size) )
             self.ftanparam.preflag=True
-            
         nfin = 64
         npoints = 5  #  only 3 points in jump
         perc    = 50.0 # 50 % for output segment
         tempsac=self.copy()
-        if abs(tempsac.stats.sac.b+tempsac.stats.sac.e)<tempsac.stats.delta:
-            tempsac.makesym()
-        tb=tempsac.stats.sac.b
+        tb=self.stats.sac.b
         length=len(tempsac.data)
         if length>32768:
             print "Warning: length of seismogram is larger than 32768!"
@@ -388,6 +377,7 @@ class sw4trace(obspy.core.trace.Trace):
             self.ftanparam.nfout1_2,self.ftanparam.arr1_2,self.ftanparam.nfout2_2,self.ftanparam.arr2_2,self.ftanparam.tamp_2, \
                     self.ftanparam.nrow_2,self.ftanparam.ncol_2,self.ftanparam.ampo_2, self.ftanparam.ierr_2 = ftan.aftanipg(piover4,nsam, \
                         sig,tb,dt,dist,vmin,vmax,tmin2,tmax2,tresh,ffact,perc,npoints,taperl,nfin,snr,fmatch,npred,pred,nprpv,phprper,phprvel)
+        self.ftanparam.station_id=self.stats.network+'.'+self.stats.station 
         return
 
     def plotftan(self, plotflag=3, sacname=''):
@@ -532,18 +522,6 @@ class sw4trace(obspy.core.trace.Trace):
         except AttributeError:
             print 'Error: FTAN Parameters are not available!'
         return
-    
-    def getSNRaftan(self ):
-        try:
-            self.SNRParam
-        except:
-            self.init_snrParam()
-        self.SNRParam.amp_s=self.ftanparam.arr1_1[8,:self.ftanparam.nfout1_1]
-        self.SNRParam.snr_s=np.ones(self.ftanparam.nfout1_1)*100
-        self.SNRParam.nrms_s=np.ones(self.ftanparam.nfout1_1)
-        self.SNRParam.oper_s=self.ftanparam.arr1_1[1,:self.ftanparam.nfout1_1]
-        # print perLst
-        return
 
 
 
@@ -565,6 +543,7 @@ class InputFtanParam(object): ###
     fmatch      - factor to length of phase matching window
     fhlen       - half length of Gaussian width
     dosnrflag   - whether to do SNR analysis or not
+    predV          - predicted phase velocity curve
     -----------------------------------------------------------------------------------------------------
     """
     def __init__(self):
@@ -604,16 +583,17 @@ class InputFtanParam(object): ###
         self.predV=predV
         return
 
-
 class sw4ASDF(pyasdf.ASDFDataSet):
     
-    def Readsw4sac(self, stafile, datadir, comptype='u', datatype='displacement'):
+    def Readsac(self, stafile, datadir, comptype='u', datatype='displacement'):
         if comptype == 'all':
             comptype=['e', 'n', 'u']
         else:
             comptype=[comptype]
         SLst=stations.StaLst()
         SLst.ReadStaList(stafile=stafile)
+        StaInv=SLst.GetInventory()
+        self.add_stationxml(StaInv)
         for sta in SLst.stations:
             if sta.variables == 'displacement':
                 sacsfx=''
@@ -621,22 +601,69 @@ class sw4ASDF(pyasdf.ASDFDataSet):
                 sacsfx='v'
             for comp in comptype:
                 sacfname = datadir+'/'+sta.network+'.'+sta.stacode+'.'+comp+sacsfx
-                self.add_waveforms(sacfname, tag='sw4_raw')
+                tr=obspy.read(sacfname)[0]
+                # print tr.stats.sac.o
+                tr.stats.network=sta.network
+                self.add_waveforms(tr, tag='sw4_raw')
         return
     
-    def aftan(self, comptype='u', outdir=None, inftan=InputFtanParam(), phvelname ='./ak135.disp' ):
+    def AddEvent(self, x, y, z):
+        print 'Attention: Event Location unit is km!'
+        origin=obspy.core.event.origin.Origin(longitude=x, latitude=y, depth=z)
+        event=obspy.core.event.event.Event(origins=[origin])
+        catalog=obspy.core.event.catalog.Catalog(events=[event])
+        self.add_quakeml(catalog)
+        return
+    
+    
+    def aftan(self, compindex=0, tb=0., outdir=None, inftan=InputFtanParam(), phvelname ='./ak135.disp', basic1=True, basic2=False,
+            pmf1=False, pmf2=False):
+        """
+        _1_DISP.0: arr1_1
+        _1_DISP.1: arr2_1
+        _2_DISP.0: arr1_2
+        _2_DISP.1: arr2_2
+        """
         # compdict={'e':0, 'n':1, 'u':2}
-        
-        ###
-        #read ak135 disp
-        ###
-        compindex=compdict[comptype]
-        for stacode in dbase.waveforms.list():
-            tr=dbase.waveforms[stacode][0]
-            ntrace=noisetrace(tr.data, tr.stats)
+        evlo=self.events.events[0].origins[0].longitude
+        evla=self.events.events[0].origins[0].latitude
+        predV=np.loadtxt(phvelname)
+        for stacode in self.waveforms.list():
+            # Get data from ASDF dataset
+            tr=self.waveforms[stacode].sw4_raw[compindex]
+            tr.stats.sac={}
+            tr.stats.sac.evlo=evlo
+            tr.stats.sac.evla=evla
+            tr.stats.sac.b=tb
+            stlo=self.waveforms[stacode].coordinates['longitude']
+            stla=self.waveforms[stacode].coordinates['latitude']
+            tr.stats.sac.stlo=stlo*100.
+            tr.stats.sac.stla=stla*100.
+            # aftan analysis
+            ntrace=sw4trace(tr.data, tr.stats)
             ntrace.aftan(pmf=inftan.pmf, piover4=inftan.piover4, vmin=inftan.vmin,
                 vmax=inftan.vmax, tmin=inftan.tmin, tmax=inftan.tmax, tresh=inftan.tresh,
                 ffact=inftan.ffact, taperl=inftan.taperl, snr=inftan.snr, fmatch=inftan.fmatch, predV=inftan.predV)
+            print 'aftan analysis for', tr.stats.station, ntrace.stats.sac.dist
+            # save aftan results to ASDF dataset
+            if basic1==True:
+                parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout1_1}
+                self.add_auxiliary_data(data=ntrace.ftanparam.arr1_1, data_type='DISPbasic1', path=tr.stats.station, parameters=parameters)
+            if basic2==True:
+                parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'snrdb': 5, 'mhw': 6, 'amp': 7, 'Np': ntrace.ftanparam.nfout2_1}
+                self.add_auxiliary_data(data=ntrace.ftanparam.arr2_1, data_type='DISPbasic2', path=tr.stats.station, parameters=parameters)
+            if inftan.pmf==True:
+                if pmf1==True:
+                    parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout1_2}
+                    self.add_auxiliary_data(data=ntrace.ftanparam.arr1_2, data_type='DISPpmf1', path=tr.stats.station, parameters=parameters)
+                if pmf2==True:
+                    parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout2_2}
+                    self.add_auxiliary_data(data=ntrace.ftanparam.arr2_2, data_type='DISPpmf2', path=tr.stats.station, parameters=parameters)
+        ### dbase.auxiliary_data.DISPbasic1['112S1000'].data.value[dbase.auxiliary_data.DISPbasic1['112S1000'].parameters['Vph']]
+        return        
+        
+        
+                
             
         
         

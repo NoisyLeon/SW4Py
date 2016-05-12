@@ -1,6 +1,6 @@
 import os, shutil
 import numpy as np
-
+import obspy
 
 class StaInfo(object):
     """
@@ -175,4 +175,28 @@ class StaLst(object):
         with open(infname, "a") as f:
             f.write(InputStr)
         f.close()
-        return 
+        return
+    
+    def GetInventory(self, outfname=None, chans=['UP'], source='CU'):
+        stations=[]
+        total_number_of_channels=len(chans)
+        site=obspy.core.inventory.util.Site(name='01')
+        creation_date=obspy.core.utcdatetime.UTCDateTime(0)
+        for sta in self.stations:
+            channels=[]
+            for chan in chans:
+                channel=obspy.core.inventory.channel.Channel(code=chan, location_code='01', latitude=sta.y/100000., longitude=sta.x/100000.,
+                        elevation=sta.z, depth=0.0)
+                channels.append(channel)
+            station=obspy.core.inventory.station.Station(code=sta.stacode, latitude=sta.y/100000., longitude=sta.x/100000., elevation=sta.z,
+                    site=site, channels=channels, total_number_of_channels = total_number_of_channels, creation_date = creation_date)
+            stations.append(station)
+        network=obspy.core.inventory.network.Network(code=sta.network, stations=stations)
+        networks=[network]
+        inv=obspy.core.inventory.inventory.Inventory(networks=networks, source=source)
+        if outfname!=None:
+            inv.write(outfname, format='stationxml')
+        return inv
+            
+        
+    
