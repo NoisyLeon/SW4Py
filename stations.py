@@ -161,7 +161,7 @@ class StaLst(object):
                     sacformat=sacformat, writeEvery=writeEvery, nsew=nsew, variables=variables ));
         return;
 
-    def Wrtie2Input(self, infname, cartesian=True):
+    def Write2Input(self, infname, cartesian=True):
         if cartesian==True:
             sac_string = 'rec x=%.3f y=%.3f depth=%.3f file=%s sta=%s writeEvery=%d usgsformat=%d sacformat=%d nsew=%d variables=%s\n';
         else:
@@ -197,6 +197,19 @@ class StaLst(object):
         if outfname!=None:
             inv.write(outfname, format='stationxml')
         return inv
+    
+    def GetLineStaLst(self, x=None, y=None, xmin=-1e10, xmax=1e10, ymin=-1e10, ymax=1e10):
+        if x==None and y == None:
+            raise ValueError("At least one of x or y need to be specified!")
+        newSLst=StaLst()
+        for sta in self.stations:
+            if x!=None:
+                if sta.x==x and sta.y>ymin and sta.y<ymax:
+                    newSLst.append(sta)
+                if sta.y==y and sta.x>xmin and sta.x<xmax:
+                    newSLst.append(sta)
+        return newSLst
+    
             
         
     
