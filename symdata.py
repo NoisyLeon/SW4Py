@@ -586,13 +586,25 @@ class InputFtanParam(object): ###
 class sw4ASDF(pyasdf.ASDFDataSet):
     
     def Readsac(self, stafile, datadir, comptype='u', datatype='displacement'):
+        """ Read SAC files into ASDF dataset according to given station list
+        -----------------------------------------------------------------------------------------------------
+        Input Parameters:
+        stafile       - station list file name
+        datadir     - data directory
+        comptype  - component type, can be e(East), n(North), u(UP), all
+        datatype   - displacement or velocity
+        Output:
+        self.waveforms
+        -----------------------------------------------------------------------------------------------------
+        """
+        print 'Start reading sac files!'
         if comptype == 'all':
             comptype=['e', 'n', 'u']
         else:
             comptype=[comptype]
         SLst=stations.StaLst()
         SLst.ReadStaList(stafile=stafile)
-        StaInv=SLst.GetInventory()
+        StaInv=SLst.GetInventory() 
         self.add_stationxml(StaInv)
         for sta in SLst.stations:
             if sta.variables == 'displacement':
@@ -602,12 +614,20 @@ class sw4ASDF(pyasdf.ASDFDataSet):
             for comp in comptype:
                 sacfname = datadir+'/'+sta.network+'.'+sta.stacode+'.'+comp+sacsfx
                 tr=obspy.read(sacfname)[0]
-                # print tr.stats.sac.o
                 tr.stats.network=sta.network
                 self.add_waveforms(tr, tag='sw4_raw')
+        print 'End reading sac files!'
         return
     
     def AddEvent(self, x, y, z):
+        """ Add event information to ASDF dataset
+        -----------------------------------------------------------------------------------------------------
+        Input Parameters:
+        x,y,z       - event location, unit is km
+        Output:
+        self.events
+        -----------------------------------------------------------------------------------------------------
+        """
         print 'Attention: Event Location unit is km!'
         origin=obspy.core.event.origin.Origin(longitude=x, latitude=y, depth=z)
         event=obspy.core.event.event.Event(origins=[origin])
@@ -615,28 +635,38 @@ class sw4ASDF(pyasdf.ASDFDataSet):
         self.add_quakeml(catalog)
         return
     
-    
     def aftan(self, compindex=0, tb=0., outdir=None, inftan=InputFtanParam(), phvelname ='./ak135.disp', basic1=True, basic2=False,
             pmf1=False, pmf2=False):
-        """
-        _1_DISP.0: arr1_1
-        _1_DISP.1: arr2_1
-        _2_DISP.0: arr1_2
-        _2_DISP.1: arr2_2
+        """ aftan analysis for ASDF Dataset
+        -----------------------------------------------------------------------------------------------------
+        Input Parameters:
+        compindex   - component index in waveforms path (default = 0)
+        tb                -  begin time (default = 0)
+        outdir          - directory for output disp txt files (default = None, no txt output)
+        
+        Output:
+        self.events
+        -----------------------------------------------------------------------------------------------------
         """
         # compdict={'e':0, 'n':1, 'u':2}
-        evlo=self.events.events[0].origins[0].longitude
-        evla=self.events.events[0].origins[0].latitude
-        predV=np.loadtxt(phvelname)
-        for stacode in self.waveforms.list():
+        print 'Start aftan analysis!'
+        try:
+            evlo=self.events.events[0].origins[0].longitude
+            evla=self.events.events[0].origins[0].latitude
+        except:
+            raise ValueError('No event specified to the datasets!')
+        ###
+        predV=np.loadtxt(phvelname) ### Need to be modified for 3D heterogeneous model
+        ###
+        for station_id in self.waveforms.list():
             # Get data from ASDF dataset
-            tr=self.waveforms[stacode].sw4_raw[compindex]
+            tr=self.waveforms[station_id].sw4_raw[compindex]
             tr.stats.sac={}
             tr.stats.sac.evlo=evlo
             tr.stats.sac.evla=evla
             tr.stats.sac.b=tb
-            stlo=self.waveforms[stacode].coordinates['longitude']
-            stla=self.waveforms[stacode].coordinates['latitude']
+            stlo=self.waveforms[station_id].coordinates['longitude']
+            stla=self.waveforms[station_id].coordinates['latitude']
             tr.stats.sac.stlo=stlo*100.
             tr.stats.sac.stla=stla*100.
             # aftan analysis
@@ -644,23 +674,141 @@ class sw4ASDF(pyasdf.ASDFDataSet):
             ntrace.aftan(pmf=inftan.pmf, piover4=inftan.piover4, vmin=inftan.vmin,
                 vmax=inftan.vmax, tmin=inftan.tmin, tmax=inftan.tmax, tresh=inftan.tresh,
                 ffact=inftan.ffact, taperl=inftan.taperl, snr=inftan.snr, fmatch=inftan.fmatch, predV=inftan.predV)
-            print 'aftan analysis for', tr.stats.station, ntrace.stats.sac.dist
+            
+            print 'aftan analysis for', station_id, ntrace.stats.sac.dist
+            station_id_aux=tr.stats.network+tr.stats.station
             # save aftan results to ASDF dataset
             if basic1==True:
-                parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout1_1}
-                self.add_auxiliary_data(data=ntrace.ftanparam.arr1_1, data_type='DISPbasic1', path=tr.stats.station, parameters=parameters)
+                parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout1_1,
+                        'knetwk': tr.stats.network, 'kstnm': tr.stats.station}
+                self.add_auxiliary_data(data=ntrace.ftanparam.arr1_1, data_type='DISPbasic1', path=station_id_aux, parameters=parameters)
             if basic2==True:
-                parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'snrdb': 5, 'mhw': 6, 'amp': 7, 'Np': ntrace.ftanparam.nfout2_1}
-                self.add_auxiliary_data(data=ntrace.ftanparam.arr2_1, data_type='DISPbasic2', path=tr.stats.station, parameters=parameters)
+                parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'snrdb': 5, 'mhw': 6, 'amp': 7, 'Np': ntrace.ftanparam.nfout2_1,
+                        'knetwk': tr.stats.network, 'kstnm': tr.stats.station}
+                self.add_auxiliary_data(data=ntrace.ftanparam.arr2_1, data_type='DISPbasic2', path=station_id_aux, parameters=parameters)
             if inftan.pmf==True:
                 if pmf1==True:
-                    parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout1_2}
-                    self.add_auxiliary_data(data=ntrace.ftanparam.arr1_2, data_type='DISPpmf1', path=tr.stats.station, parameters=parameters)
+                    parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout1_2,
+                        'knetwk': tr.stats.network, 'kstnm': tr.stats.station}
+                    self.add_auxiliary_data(data=ntrace.ftanparam.arr1_2, data_type='DISPpmf1', path=station_id_aux, parameters=parameters)
                 if pmf2==True:
-                    parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout2_2}
-                    self.add_auxiliary_data(data=ntrace.ftanparam.arr2_2, data_type='DISPpmf2', path=tr.stats.station, parameters=parameters)
+                    parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout2_2,
+                        'knetwk': tr.stats.network, 'kstnm': tr.stats.station}
+                    self.add_auxiliary_data(data=ntrace.ftanparam.arr2_2, data_type='DISPpmf2', path=station_id_aux, parameters=parameters)
         ### dbase.auxiliary_data.DISPbasic1['112S1000'].data.value[dbase.auxiliary_data.DISPbasic1['112S1000'].parameters['Vph']]
-        return        
+        print 'End aftan analysis!'
+        return
+    
+    def SelectData(self, outfname, stafile, sacflag=True, compindex=0, disptype='DISPbasic1' ):
+        SLst=stations.StaLst()
+        SLst.ReadStaList(stafile=stafile)
+        StaInv=SLst.GetInventory()
+        Ndbase=sw4ASDF(outfname)
+        Ndbase.add_stationxml(StaInv)
+        Ndbase.add_quakeml(self.events)
+        disptypelst=['DISPbasic1', 'DISPbasic2', 'DISPpmf1', 'DISPpmf2']
+        for sta in SLst.stations:
+            station_id=sta.network+'.'+sta.stacode
+            station_id_aux=sta.network+sta.stacode
+            if sacflag==True:
+                try:
+                    tr=self.waveforms[station_id].sw4_raw[compindex]
+                    Ndbase.add_waveforms(tr, tag='sw4_raw')
+                except:
+                    print 'No sac data for:',station_id,'!'
+            if disptype!='All' and disptype !='all':
+                try:
+                    data=self.auxiliary_data[disptype][station_id_aux].data.value
+                    parameters=self.auxiliary_data[disptype][station_id_aux].parameters
+                    # data=self.auxiliary_data[disptype][sta.stacode].data.value
+                    # parameters=self.auxiliary_data[disptype][sta.stacode].parameters
+                    Ndbase.add_auxiliary_data(data=data, data_type=disptype, path=station_id_aux, parameters=parameters)
+                except:
+                    print 'No', disptype, 'data for:', station_id, '!'
+            else:
+                for disptype in disptypelst:
+                    try:
+                        data=self.auxiliary_data[disptype][station_id_aux].data.value
+                        parameters=self.auxiliary_data[disptype][station_id_aux].parameters
+                        # data=self.auxiliary_data[disptype][sta.stacode].data.value
+                        # parameters=self.auxiliary_data[disptype][sta.stacode].parameters
+                        Ndbase.add_auxiliary_data(data=data, data_type=disptype, path=station_id_aux, parameters=parameters)
+                    except:
+                        print 'No', disptype, 'data for:', station_id, '!'
+        return Ndbase
+    
+    def InterpDisp(self, data_type='DISPbasic1', pers=np.array([5., 10., 15., 20., 25., 30.])):
+        # outindex={'To': 0, 'Vgr': 1, 'Vph': 2,  'amp': 3, 'Np': pers.size}
+        staidLst=self.auxiliary_data[data_type].list()
+        for staid in staidLst:
+            knetwk=str(self.auxiliary_data[data_type][staid].parameters['knetwk'])
+            kstnm=str(self.auxiliary_data[data_type][staid].parameters['kstnm'])
+            print 'Interpolating dispersion curve for '+ knetwk + kstnm
+            outindex={ 'To': 0, 'Vgr': 1, 'Vph': 2,  'amp': 3, 'Np': pers.size, 'knetwk': knetwk, 'kstnm': kstnm }
+            data=self.auxiliary_data[data_type][staid].data.value
+            index=self.auxiliary_data[data_type][staid].parameters
+            Np=index['Np']
+            Vgr=np.interp(pers, data[index['To']][:Np], data[index['Vgr']][:Np] )
+            Vph=np.interp(pers, data[index['To']][:Np], data[index['Vph']][:Np] )
+            amp=np.interp(pers, data[index['To']][:Np], data[index['amp']][:Np] )
+            interpdata=np.append(pers, Vgr)
+            interpdata=np.append(interpdata, Vph)
+            interpdata=np.append(interpdata, amp)
+            interpdata=interpdata.reshape(4, pers.size)
+            self.add_auxiliary_data(data=interpdata, data_type=data_type+'interp', path=staid, parameters=outindex)
+        return
+    
+    def GetField(self, data_type='DISPbasic1', fieldtype='Vgr', pers=np.array([5., 10., 15., 20., 25., 30.]), txtfprx=None, distflag=True ):
+        ### Need Check
+        data_type=data_type+'interp'
+        tempdict={'Vgr': 'Tgr', 'Vph': 'Tph', 'amp': 'amp'}
+        if distflag==True:
+            outindex={ 'x': 0, 'y': 1, tempdict[fieldtype]: 2,  'dist': 3 }
+        else:
+            outindex={ 'x': 0, 'y': 1, tempdict[fieldtype]: 2 }
+        staidLst=self.auxiliary_data[data_type].list()
+        evlo=self.events.events[0].origins[0].longitude
+        evla=self.events.events[0].origins[0].latitude
+        Nfp=len(staidLst)
+        for per in pers:
+            FieldArr=np.array([])
+            for staid in staidLst:
+                data=self.auxiliary_data[data_type][staid].data.value # Get interpolated aftan data
+                index=self.auxiliary_data[data_type][staid].parameters # Get index
+                obsT=data[index['To']]
+                outdata=data[index[fieldtype]]
+                fieldpoint=outdata[obsT==per]
+                if fieldpoint.size==0:
+                    raise ValueError('No datapoint for'+ per+' in interpolated disp dataset!')
+                knetwk=self.auxiliary_data[data_type][staid].parameters['knetwk']
+                kstnm=self.auxiliary_data[data_type][staid].parameters['kstnm']
+                station_id=knetwk+'.'+kstnm
+                stlo=self.waveforms[station_id].coordinates['longitude']*100.
+                stla=self.waveforms[station_id].coordinates['latitude']*100.
+                distance=np.sqrt( (stlo-evlo)**2 + (stla-evla)**2 )
+                FieldArr=np.append(FieldArr, stlo)
+                FieldArr=np.append(FieldArr, stla)
+                if fieldtype=='Vgr' or fieldtype=='Vph':
+                    fieldpoint=distance/fieldpoint
+                FieldArr=np.append(FieldArr, fieldpoint)
+                if distflag==True:
+                    FieldArr=np.append(FieldArr, distance)
+            if distflag==True:
+                FieldArr=FieldArr.reshape( Nfp, 4)
+            else:
+                FieldArr=FieldArr.reshape( Nfp, 3)
+            if txtfprx!=None:
+                txtfname=txtfprx+'_'+str(per)+'.txt'
+                np.savetxt(txtfname, FieldArr, fmt='%g')
+            self.add_auxiliary_data(data=FieldArr, data_type='Field'+data_type, path=fieldtype, parameters=outindex)
+        return
+            
+        
+    
+        
+        
+        
+    
         
         
                 

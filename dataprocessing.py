@@ -2,10 +2,16 @@ import symdata
 # import noisepy as npy
 import obspy
 import obspy.geodetics as obsGeo
-# dbase=symdata.sw4ASDF('sw4synthetics.h5')
+dbase=symdata.sw4ASDF('sw4synthetics.h5')
+dbase.GetField(txtfprx='./Vgr')
+# del dbase.auxiliary_data.DISPbasic1interp
+# del dbase.events
+
+# dbase.InterpDisp()
+# ndbase=dbase.SelectData(outfname='sw4synthetics001.h5', stafile='station_001.lst')
 
 # inv=dbase.Readsac('station.lst',datadir='/lustre/janus_scratch/life9360/sw4_working_dir_trials/ak135', comptype='u')
-# dbase.AddEvent(x=300, y=300, z=0)
+# dbase.AddEvent(x=1000, y=1000, z=0)
 # dbase.aftan()
 # f='/lustre/janus_scratch/life9360/sw4_working_dir_trials/ak135/SW4.165S1000.u'
 # prefname='./ak135.disp'
