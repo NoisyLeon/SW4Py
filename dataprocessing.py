@@ -3,21 +3,24 @@ import symdata
 import obspy
 import obspy.geodetics as obsGeo
 dbase=symdata.sw4ASDF('sw4synthetics.h5')
-dbase.GetField(txtfprx='./Vgr')
-# del dbase.auxiliary_data.DISPbasic1interp
+inftan=symdata.InputFtanParam()
+inftan.ffact=5.
+inftan.pmf=True
+# del dbase.auxiliary_data.DISPbasic1
+# del dbase.auxiliary_data.DISPpmf2
+# dbase.aftan(inftan=inftan, basic2=True,
+#             pmf1=True, pmf2=True)
 # del dbase.events
-
-# dbase.InterpDisp()
+# del dbase.auxiliary_data.DISPbasic1interp
+# dbase.InterpDisp(data_type='DISPpmf2')
 # ndbase=dbase.SelectData(outfname='sw4synthetics001.h5', stafile='station_001.lst')
 
-# inv=dbase.Readsac('station.lst',datadir='/lustre/janus_scratch/life9360/sw4_working_dir_trials/ak135', comptype='u')
+# inv=dbase.Readsac('ak135_station.lst',datadir='/home/lili/sw4_working_dir/ak135_001', comptype='u')
 # dbase.AddEvent(x=1000, y=1000, z=0)
-# dbase.aftan()
-# f='/lustre/janus_scratch/life9360/sw4_working_dir_trials/ak135/SW4.165S1000.u'
-# prefname='./ak135.disp'
-# st=obspy.read(f)
-# tr=st[0]
-# tr1=symdata.sw4trace(tr.data, tr.stats)
-# dist, az, baz=obsGeo.base.gps2dist_azimuth(tr1.stats.sac.evla, tr1.stats.sac.evlo, tr1.stats.sac.stla, tr1.stats.sac.stlo ) # distance is in m
-# tr1.stats.sac.dist=1677.98241945
-# tr1.aftan(piover4=-1., pmf=True, phvelname=prefname)
+
+# del dbase.auxiliary_data.FieldDISPbasic1interp
+# dbase.GetField(outdir='./', fieldtype='amp', data_type='DISPpmf2')
+# dbase.GetField(outdir='./', fieldtype='Vgr',  data_type='DISPpmf2')
+
+flst=dbase.aftanParallel(inftan=inftan, basic2=True,
+            pmf1=True, pmf2=True)

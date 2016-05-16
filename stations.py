@@ -1,7 +1,7 @@
 import os, shutil
 import numpy as np
 import obspy
-
+import time
 class StaInfo(object):
     """
     An object contains a station information several methods for station related analysis.
@@ -27,6 +27,11 @@ class StaInfo(object):
         self.nsew=nsew;
         self.variables=variables;
         return;
+    
+    def printloc(self):
+        self._dd = self.x**2+self.y**2+self.z**2
+        # print self.dd
+        # time.sleep(1)
     
 class StaLst(object):
     """
