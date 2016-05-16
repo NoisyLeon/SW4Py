@@ -15,8 +15,8 @@ mindist=DistArr.min()
 indexmin=DistArr.argmin()
 plt.plot(DistArr, VgrArr,'o' );
 # plt.plot(DistArr, (VgrArr-VgrArr[indexmin])/VgrArr[indexmin]*100.,'o' );
-plt.ylabel('Relative Difference in Vgr (%)');
-# plt.ylabel('Vgr(km/s)');
+# plt.ylabel('Relative Difference in Vgr (%)');
+plt.ylabel('Vgr(km/s)');
 plt.xlabel('Distance(km)');
 
 
@@ -30,8 +30,8 @@ mindist=DistArr.min()
 indexmin=DistArr.argmin()
 maxamp=AmpArr[indexmin]
 # plt.plot(DistArr, AmpArr*1e9,'o' );
-# plt.ylabel('Amplitude(nm)');
-# plt.xlabel('Distance(km)');
+plt.ylabel('Amplitude');
+plt.xlabel('Distance(km)');
 # 
 # plt.figure();
 # # plt.plot(DistArr, VgrArr, 'x');

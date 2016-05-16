@@ -16,8 +16,8 @@ import scipy.signal
 import numexpr as npr
 from functools import partial
 import multiprocessing
-from multiprocessing.managers import BaseManager
-from multiprocessing import Process, Lock, Queue
+# from multiprocessing.managers import BaseManager
+# from multiprocessing import Process, Lock, Queue, Manager, Value, Array
 import math
 import time
 import shutil
@@ -164,6 +164,26 @@ class ftanParam(object):
             outArrf21=outArrf21.T;
             np.savetxt(f21, outArrf21, fmt='%4d %10.4lf %10.4lf %12.4lf %12.4lf %12.4lf %8.3lf');
         return
+    
+    def writeDISPbinary(self, fnamePR):
+        """
+        Write FTAN parameters to DISP files given a prefix.
+        fnamePR: file name prefix
+        _1_DISP.0: arr1_1
+        _1_DISP.1: arr2_1
+        _2_DISP.0: arr1_2
+        _2_DISP.1: arr2_2
+        """
+        f10=fnamePR+'_1_DISP.0';
+        np.savez(f10, self.arr1_1, np.array([self.nfout1_1]) )
+        f11=fnamePR+'_1_DISP.1'
+        np.savez(f11, self.arr2_1, np.array([self.nfout2_1]) )
+        f20=fnamePR+'_2_DISP.0'
+        np.savez(f20, self.arr1_2, np.array([self.nfout1_2]) )
+        f21=fnamePR+'_2_DISP.1'
+        np.savez(f21, self.arr2_2, np.array([self.nfout2_2]) )
+        return
+    
 
     def FTANcomp(self, inftanparam, compflag=4):
         """
@@ -567,7 +587,7 @@ class InputFtanParam(object): ###
 
 class sw4ASDF(pyasdf.ASDFDataSet):
     
-    def Readsac(self, stafile, datadir, comptype='u', datatype='displacement'):
+    def Readsac(self, stafile, datadir, comptype='u', datatype='displacement', verbose=False):
         """ Read SAC files into ASDF dataset according to given station list
         -----------------------------------------------------------------------------------------------------
         Input Parameters:
@@ -593,6 +613,8 @@ class sw4ASDF(pyasdf.ASDFDataSet):
                 sacsfx=''
             else:
                 sacsfx='v'
+            if verbose == True:
+                print 'Reading sac file:', sta.network,sta.stacode
             for comp in comptype:
                 sacfname = datadir+'/'+sta.network+'.'+sta.stacode+'.'+comp+sacsfx
                 tr=obspy.read(sacfname)[0]
@@ -618,7 +640,7 @@ class sw4ASDF(pyasdf.ASDFDataSet):
         return
     
     def aftan(self, compindex=0, tb=-13.5, outdir=None, inftan=InputFtanParam(), phvelname ='./ak135.disp', basic1=True, basic2=False,
-            pmf1=False, pmf2=False):
+            pmf1=False, pmf2=False, verbose=True):
         """ aftan analysis for ASDF Dataset
         -----------------------------------------------------------------------------------------------------
         Input Parameters:
@@ -661,7 +683,8 @@ class sw4ASDF(pyasdf.ASDFDataSet):
             ntrace.aftan(pmf=inftan.pmf, piover4=inftan.piover4, vmin=inftan.vmin,
                 vmax=inftan.vmax, tmin=inftan.tmin, tmax=inftan.tmax, tresh=inftan.tresh,
                 ffact=inftan.ffact, taperl=inftan.taperl, snr=inftan.snr, fmatch=inftan.fmatch, predV=inftan.predV)
-            print 'aftan analysis for', station_id#, ntrace.stats.sac.dist
+            if verbose ==True:
+                print 'aftan analysis for', station_id#, ntrace.stats.sac.dist
             station_id_aux=tr.stats.network+tr.stats.station # station_id for auxiliary data("SW4AAA"), not the diference with station_id "SW4.AAA"
             # save aftan results to ASDF dataset
             if basic1==True:
@@ -740,13 +763,14 @@ class sw4ASDF(pyasdf.ASDFDataSet):
                         print 'No', dispindex, 'data for:', station_id, '!'
         return Ndbase
     
-    def InterpDisp(self, data_type='DISPbasic1', pers=np.array([10., 15., 20., 25.])):
+    def InterpDisp(self, data_type='DISPbasic1', pers=np.array([10., 15., 20., 25.]), verbose=True):
         # outindex={'To': 0, 'Vgr': 1, 'Vph': 2,  'amp': 3, 'Np': pers.size}
         staidLst=self.auxiliary_data[data_type].list()
         for staid in staidLst:
             knetwk=str(self.auxiliary_data[data_type][staid].parameters['knetwk'])
             kstnm=str(self.auxiliary_data[data_type][staid].parameters['kstnm'])
-            print 'Interpolating dispersion curve for '+ knetwk + kstnm
+            if verbose ==True:
+                print 'Interpolating dispersion curve for '+ knetwk + kstnm
             outindex={ 'To': 0, 'Vgr': 1, 'Vph': 2,  'amp': 3, 'inbound': 4, 'Np': pers.size, 'knetwk': knetwk, 'kstnm': kstnm }
             data=self.auxiliary_data[data_type][staid].data.value
             index=self.auxiliary_data[data_type][staid].parameters
@@ -819,15 +843,24 @@ class sw4ASDF(pyasdf.ASDFDataSet):
             else:
                 FieldArr=FieldArr.reshape( Nfp, 3)
             if outdir!=None:
+                if not os.path.isdir(outdir):
+                    os.makedirs(outdir)
                 txtfname=outdir+'/'+tempdict[fieldtype]+'_'+str(per)+'.txt'
                 np.savetxt(txtfname, FieldArr, fmt='%g')
             self.add_auxiliary_data(data=FieldArr, data_type='Field'+data_type, path=tempdict[fieldtype]+str(int(per)), parameters=outindex)
         return
     
-    def aftanParallel(self, compindex=0, tb=-13.5, outdir=None, inftan=InputFtanParam(), phvelname ='./ak135.disp', basic1=True, basic2=False,
-            pmf1=False, pmf2=False):
-        
-        print 'Start aftan analysis!'
+    def aftanMP(self, outdir, deletedisp=True, compindex=0, tb=-13.5, inftan=InputFtanParam(), phvelname ='./ak135.disp', basic1=True, basic2=False,
+            pmf1=False, pmf2=False ):
+        """
+        Code Notes:
+        I tried to use multiprocessing.Manager to define a list shared by all the process and every lock the process when writing to the shared list,
+        but unfortunately this somehow doesn't work. As a result, I write this aftan with multiprocessing.Pool, it only speed up about twice compared
+        with single processor version aftan.
+        """
+        print 'Start aftan analysis (MP)!'
+        if not os.path.isdir(outdir):
+            os.makedirs(outdir)
         try:
             evlo=self.events.events[0].origins[0].longitude
             evla=self.events.events[0].origins[0].latitude
@@ -837,7 +870,8 @@ class sw4ASDF(pyasdf.ASDFDataSet):
         predV=np.loadtxt(phvelname) ### Need to be modified for 3D heterogeneous model
         ###
         noiseStream=[]
-        BaseManager.register('ftanLst', ftanLst)
+        knetwkLst=np.array([])
+        kstnmLst=np.array([])
         for station_id in self.waveforms.list():
             # Get data from ASDF dataset
             tr=self.waveforms[station_id].sw4_raw[compindex]
@@ -849,68 +883,66 @@ class sw4ASDF(pyasdf.ASDFDataSet):
             stla=self.waveforms[station_id].coordinates['latitude']
             tr.stats.sac.stlo=stlo*100. # see stations.StaLst.GetInventory
             tr.stats.sac.stla=stla*100.
-            # aftan analysis
             ntrace=sw4trace(tr.data, tr.stats)
             noiseStream.append(ntrace)
-        manager = aftanManager()
-        FLst = manager.ftanLst()
+            knetwkLst=np.append(knetwkLst, tr.stats.network)
+            kstnmLst=np.append(kstnmLst, tr.stats.station)
+        # aftan analysis
+        AFTAN = partial(aftan4mp, outdir=outdir, inftan=inftan)
         pool = multiprocessing.Pool()
-        # ADDSLOW = partial(f, datadir=datadir, prefix=prefix, suffix=suffix)
-        # pool =mp.Pool()
-        # pool.map(ADDSLOW, self.stations) #make our results with a map call
-        for i in range(len(noiseStream)):
-            ntr=noiseStream[i]
-            pool.apply_async(func=aftan4mp, args=(FLst, ntr, inftan))
-        # SLst
-        pool.close()
-        pool.join()
-        return FLst._getvalue()
-            # 
-            # 
-            # 
-            # ntrace.aftan(pmf=inftan.pmf, piover4=inftan.piover4, vmin=inftan.vmin,
-            #     vmax=inftan.vmax, tmin=inftan.tmin, tmax=inftan.tmax, tresh=inftan.tresh,
-            #     ffact=inftan.ffact, taperl=inftan.taperl, snr=inftan.snr, fmatch=inftan.fmatch, predV=inftan.predV)
-            # print 'aftan analysis for', station_id#, ntrace.stats.sac.dist
-            # station_id_aux=tr.stats.network+tr.stats.station # station_id for auxiliary data("SW4AAA"), not the diference with station_id "SW4.AAA"
-            # # save aftan results to ASDF dataset
-            # if basic1==True:
-            #     parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout1_1,
-            #             'knetwk': tr.stats.network, 'kstnm': tr.stats.station}
-            #     self.add_auxiliary_data(data=ntrace.ftanparam.arr1_1, data_type='DISPbasic1', path=station_id_aux, parameters=parameters)
-            # if basic2==True:
-            #     parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'snrdb': 5, 'mhw': 6, 'amp': 7, 'Np': ntrace.ftanparam.nfout2_1,
-            #             'knetwk': tr.stats.network, 'kstnm': tr.stats.station}
-            #     self.add_auxiliary_data(data=ntrace.ftanparam.arr2_1, data_type='DISPbasic2', path=station_id_aux, parameters=parameters)
-            # if inftan.pmf==True:
-            #     if pmf1==True:
-            #         parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': ntrace.ftanparam.nfout1_2,
-            #             'knetwk': tr.stats.network, 'kstnm': tr.stats.station}
-            #         self.add_auxiliary_data(data=ntrace.ftanparam.arr1_2, data_type='DISPpmf1', path=station_id_aux, parameters=parameters)
-            #     if pmf2==True:
-            #         parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'snrdb': 5, 'mhw': 6, 'amp': 7, 'Np': ntrace.ftanparam.nfout2_2,
-            #             'knetwk': tr.stats.network, 'kstnm': tr.stats.station}
-            #         self.add_auxiliary_data(data=ntrace.ftanparam.arr2_2, data_type='DISPpmf2', path=station_id_aux, parameters=parameters)
-            # if outdir != None:
-            #     foutPR=outdir+"/"+station_id
-            #     tr.ftanparam.writeDISP(foutPR)
-        ### dbase.auxiliary_data.DISPbasic1['112S1000'].data.value[dbase.auxiliary_data.DISPbasic1['112S1000'].parameters['Vph']]
-        # print 'End aftan analysis!'
-        
-    
-def aftanManager():
-    m = BaseManager()
-    m.start()
-    return m
+        pool.map_async(AFTAN, noiseStream) #make our results with a map call
+        pool.close() #we are not adding any more processes
+        pool.join() #tell it to wait until all threads are done before going on
+        print 'End of aftan analysis  ( MP ) !'
+        print 'Reading aftan results into ASDF Dataset!'
+        for i in np.arange(knetwkLst.size):
+            # Get data from ASDF dataset
+            station_id=knetwkLst[i]+'.'+kstnmLst[i]
+            # print 'Reading aftan results',station_id
+            station_id_aux=knetwkLst[i]+kstnmLst[i]
+            f10=np.load(outdir+'/'+station_id+'_1_DISP.0.npz')
+            f11=np.load(outdir+'/'+station_id+'_1_DISP.1.npz')
+            f20=np.load(outdir+'/'+station_id+'_2_DISP.0.npz')
+            f21=np.load(outdir+'/'+station_id+'_2_DISP.1.npz')
+            if deletedisp==True:
+                os.remove(outdir+'/'+station_id+'_1_DISP.0.npz')
+                os.remove(outdir+'/'+station_id+'_1_DISP.1.npz')
+                os.remove(outdir+'/'+station_id+'_2_DISP.0.npz')
+                os.remove(outdir+'/'+station_id+'_2_DISP.1.npz')
+            arr1_1=f10['arr_0']
+            nfout1_1=f10['arr_1']
+            arr2_1=f11['arr_0']
+            nfout2_1=f11['arr_1']
+            arr1_2=f20['arr_0']
+            nfout1_2=f20['arr_1']
+            arr2_2=f21['arr_0']
+            nfout2_2=f21['arr_1']
+            if basic1==True:
+                parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': nfout1_1,
+                        'knetwk': str(knetwkLst[i]), 'kstnm': str(kstnmLst[i])}
+                self.add_auxiliary_data(data=arr1_1, data_type='DISPbasic1', path=station_id_aux, parameters=parameters)
+            if basic2==True:
+                parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'snrdb': 5, 'mhw': 6, 'amp': 7, 'Np': nfout2_1,
+                        'knetwk': str(knetwkLst[i]), 'kstnm': str(kstnmLst[i])}
+                self.add_auxiliary_data(data=arr2_1, data_type='DISPbasic2', path=station_id_aux, parameters=parameters)
+            if inftan.pmf==True:
+                if pmf1==True:
+                    parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'dis': 5, 'snrdb': 6, 'mhw': 7, 'amp': 8, 'Np': nfout1_2,
+                        'knetwk': str(knetwkLst[i]), 'kstnm': str(kstnmLst[i])}
+                    self.add_auxiliary_data(data=arr1_2, data_type='DISPpmf1', path=station_id_aux, parameters=parameters)
+                if pmf2==True:
+                    parameters={'Tc': 0, 'To': 1, 'Vgr': 2, 'Vph': 3, 'ampdb': 4, 'snrdb': 5, 'mhw': 6, 'amp': 7, 'Np': nfout2_2,
+                        'knetwk': str(knetwkLst[i]), 'kstnm': str(kstnmLst[i])}
+                    self.add_auxiliary_data(data=arr2_2, data_type='DISPpmf2', path=station_id_aux, parameters=parameters)
+        return
 
-def aftan4mp(flst, nTr, inftan):
-    print 'aftan analysis for', nTr.stats.station#, ntrace.stats.sac.dist 
+
+def aftan4mp(nTr, outdir, inftan):
+    print 'aftan analysis for', nTr.stats.network, nTr.stats.station#, i.value#, ntrace.stats.sac.dist
     nTr.aftan(pmf=inftan.pmf, piover4=inftan.piover4, vmin=inftan.vmin,
                 vmax=inftan.vmax, tmin=inftan.tmin, tmax=inftan.tmax, tresh=inftan.tresh,
                 ffact=inftan.ffact, taperl=inftan.taperl, snr=inftan.snr, fmatch=inftan.fmatch, predV=inftan.predV)
-    flst.append(nTr.ftanparam)
+    foutPR=outdir+'/'+nTr.stats.network+'.'+nTr.stats.station
+    nTr.ftanparam.writeDISPbinary(foutPR)
     return
-    
-
-
             

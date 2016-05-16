@@ -1,60 +1,53 @@
-import multiprocessing
-from multiprocessing.managers import BaseManager
-import stations
-from multiprocessing import Process, Manager
+from multiprocessing import Process, Manager, Lock
+import os
 import time
-import multiprocessing
-from multiprocessing.managers import BaseManager
-from functools import partial
-# class MyManager(BaseManager): pass
-
-def Manager():
-    m = BaseManager()
-    m.start()
-    return m 
-
-class Counter(object):
-  def __init__(self):
-    self._value = 0
-
-  def update(self, value):
-    self._value += value
-
-  def get_value(self):
-      return self._value
-
-BaseManager.register('StaLst', stations.StaLst)
-
-# def update(counter_proxy, thread_id):
-#   counter_proxy.update(1)
-#   print counter_proxy.get_value(), 't%s' % thread_id, \
-#     multiprocessing.current_process().name
-#   return counter_proxy
-
-# def main():
-# def f(counter_p, slst, i):
+from multiprocessing import Process, Value, Array
+def f(d, lst, l):
+    time.sleep(1)
+    d[1] = '1'
+    d['2'] = 2
+    d[0.25] = None
+    l.acquire()
+    lst.reverse()
+    print lst, os.getpid()
+    l.release()
+l=Lock()
+# def f(n, a, l):
+#     n.value = 3.1415927
 #     time.sleep(1)
-#     print i
-#     counter.append(slst[i])
+#     l.acquire()
+#     for i in range(len(a)):
+#         a[i] = -a[i]
+#     print arr[:], os.getpid()
+#     l.release()
+    # print num.value
     
-def f(counter_p, sta, i):
-    # time.sleep(1)
-    print i
-    counter_p.append(sta)
-    
+   
 manager = Manager()
-counter = manager.StaLst()
-SLst = stations.StaLst()
-SLst.ReadStaList('station.lst')
-pool = multiprocessing.Pool(multiprocessing.cpu_count())
-# ADDSLOW = partial(f, datadir=datadir, prefix=prefix, suffix=suffix)
-# pool =mp.Pool()
-# pool.map(ADDSLOW, self.stations) #make our results with a map call
-for i in range(200):
-    sta=SLst[i]
-    pool.apply_async(func=f, args=(counter, sta, i))
-# SLst
-pool.close()
-pool.join()
 
-# print 'Should be 10 but is %s.' % counter.get_value()
+d = manager.dict()
+lst = manager.list(range(10))
+num = Value('d', 0.0)
+arr = Array('i', range(10))
+p=[]
+for i in range(5):
+    p.append( Process(target=f, args=(d, lst, l)))
+# p2=Process(target=f, args=(d, lst, l))
+# p3=Process(target=f, args=(d, lst, l))
+for i in range(5):
+    p[i].start()
+for i in range(5):
+    p[i].join()
+
+# p3.start()
+# p1.start()
+# p2.start()
+# p1.join()
+# p2.join()
+# p3.join()
+    # p[i].start
+# for i in range(5):
+    # p[i].join()
+
+    # print d
+    # print l
