@@ -18,9 +18,6 @@ plt.plot(DistArr, VgrArr,'o' );
 # plt.ylabel('Relative Difference in Vgr (%)');
 plt.ylabel('Vgr(km/s)');
 plt.xlabel('Distance(km)');
-
-
-
 infname = 'Amp_10.0.txt'
 inArr2=np.loadtxt(infname)
 AmpArr=inArr2[:,2]
@@ -48,7 +45,4 @@ plt.plot(DistArr, CampArr,'o' );
 plt.show()
 slope, intercept, r_value, p_value, std_err = stats.linregress(DistArr, DistArr/VgrArr);
 print slope, intercept, r_value, p_value, std_err
-    
-    
-# InstaStream.plot(type='section', norm_method='stream', alpha=1)
-#     
+

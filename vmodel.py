@@ -46,6 +46,9 @@ ak135model = np.array([
     610.00, 3.9206, 10.0320, 5.5047, 425.51, 170.82, 0.000,
     660.00, 3.9201, 10.2000, 5.6104, 428.69, 172.93, 0.000])
 
+ak135modelCPS = np.loadtxt('ak135_cps.txt')
+ak135modelCPS.reshape(ak135modelCPS.size)
+
 ### block model
 class Blockmodel(object):
     def __init__(self, vp=None, vs=None, rho=None, Qp=None, Qs=None, vpgrad=None, vsgrad=None, rhograd=None,
@@ -131,12 +134,21 @@ class BlockLst(object):
             absdepth=absdepth,x1=x1, x2=x2, y1=y1, y2=y2, z1=z1, z2=z2))
         return
 
-    def ak135(self, zmax=410.):
+    def ak135(self, zmax=410., CPS=True):
         
         if zmax>660.:
             raise ValueError('Depth is too large for Cartesian simulation.')
         zmax=zmax*1000.
-        modelArr=ak135model.reshape((21,7))
+        if CPS==True:
+            modelArr=ak135modelCPS.reshape((210,7))
+        else:
+            modelArr=ak135model.reshape(21, 7)
+            Qkappa=modelArr[:,4]
+            Qmu=modelArr[:,5]
+            alpha=modelArr[:,2]
+            beta=modelArr[:,3]
+            Qp_inv=4*(beta/alpha)**2/3/Qmu+(1-4*(beta/alpha)**2/3)/Qkappa
+            modelArr[:,4]=1/Qp_inv
         modelArr[:,0]=modelArr[:,0]*1000.
         modelArr[:,1]=modelArr[:,1]*1000.
         modelArr[:,2]=modelArr[:,2]*1000.
@@ -516,7 +528,7 @@ class rModel(object):
                 xyextent=xyextent, xzextent=xzextent, yzextent = yzextent, data=data) )
         return
     
-    def ak135(self, ni, nj, zmin=0., zmax=410.,  hh=None, hv=None):
+    def ak135(self, ni, nj, zmin=0., zmax=410.,  hh=None, hv=None, CPS=True):
         """
         Implement ak135 model
         """
@@ -535,7 +547,16 @@ class rModel(object):
         if self.nb == 0:
             self.AddTopoBlock(ni=ni, nj=nj, hh=hh)
             print 'No topography block, added automatically!'
-        modelArr=ak135model.reshape((21,7))
+        if CPS==True:
+            modelArr=ak135modelCPS.reshape((210,7))
+        else:
+            modelArr=ak135model.reshape(21, 7)
+            Qkappa=modelArr[:,4]
+            Qmu=modelArr[:,5]
+            alpha=modelArr[:,2]
+            beta=modelArr[:,3]
+            Qp_inv=4*(beta/alpha)**2/3/Qmu+(1-4*(beta/alpha)**2/3)/Qkappa
+            modelArr[:,4]=1/Qp_inv
         modelArr[:,0]=modelArr[:,0]*1000.
         modelArr[:,1]=modelArr[:,1]*1000.
         modelArr[:,2]=modelArr[:,2]*1000.
