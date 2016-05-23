@@ -286,7 +286,6 @@ class ftanLst(object):
             raise TypeError(msg)
         return self
 
-
 class sw4trace(obspy.core.trace.Trace):
     """
     sw4trace:
@@ -545,8 +544,6 @@ class sw4trace(obspy.core.trace.Trace):
             print 'Error: FTAN Parameters are not available!'
         return
 
-
-
 class InputFtanParam(object): ###
     """
     A subclass to store input parameters for aftan analysis and SNR Analysis
@@ -583,7 +580,6 @@ class InputFtanParam(object): ###
         self.fhlen=0.008
         self.dosnrflag=False
         self.predV=np.array([])
-
 
 class sw4ASDF(pyasdf.ASDFDataSet):
     
@@ -935,7 +931,6 @@ class sw4ASDF(pyasdf.ASDFDataSet):
                         'knetwk': str(knetwkLst[i]), 'kstnm': str(kstnmLst[i])}
                     self.add_auxiliary_data(data=arr2_2, data_type='DISPpmf2', path=station_id_aux, parameters=parameters)
         return
-
 
 def aftan4mp(nTr, outdir, inftan):
     print 'aftan analysis for', nTr.stats.network, nTr.stats.station#, i.value#, ntrace.stats.sac.dist

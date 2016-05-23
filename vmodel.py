@@ -46,7 +46,7 @@ ak135model = np.array([
     610.00, 3.9206, 10.0320, 5.5047, 425.51, 170.82, 0.000,
     660.00, 3.9201, 10.2000, 5.6104, 428.69, 172.93, 0.000])
 
-ak135modelCPS = np.loadtxt('ak135_cps.txt')
+ak135modelCPS = np.loadtxt('ak135_cps.mod')
 ak135modelCPS.reshape(ak135modelCPS.size)
 
 ### block model
@@ -141,8 +141,10 @@ class BlockLst(object):
         zmax=zmax*1000.
         if CPS==True:
             modelArr=ak135modelCPS.reshape((210,7))
+            Np=210
         else:
             modelArr=ak135model.reshape(21, 7)
+            Np=21
             Qkappa=modelArr[:,4]
             Qmu=modelArr[:,5]
             alpha=modelArr[:,2]
@@ -153,8 +155,8 @@ class BlockLst(object):
         modelArr[:,1]=modelArr[:,1]*1000.
         modelArr[:,2]=modelArr[:,2]*1000.
         modelArr[:,3]=modelArr[:,3]*1000.
-        for i in np.arange(21):
-            if modelArr[i,0]==modelArr[i+1,0]:
+        for i in np.arange(Np):
+            if modelArr[i, 0]==modelArr[i+1, 0]:
                 continue
             if zmax <= modelArr[i+1,0]:
                 if i==0:
