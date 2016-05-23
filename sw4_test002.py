@@ -5,7 +5,7 @@ from scipy import stats
 
 
 
-infname = './homo/Tgr_10.0.txt'
+infname = './ak135_VF/Tgr_10.0.txt'
 inArr=np.loadtxt(infname)
 plt.figure();
 T=inArr[:,2]
@@ -21,7 +21,7 @@ plt.xlabel('Distance(km)');
 
 
 
-infname = './homo/Amp_10.0.txt'
+infname = './ak135_VF/Amp_10.0.txt'
 inArr2=np.loadtxt(infname)
 AmpArr=inArr2[:,2]
 DistArr=inArr2[:,3]

@@ -760,7 +760,17 @@ class sw4ASDF(pyasdf.ASDFDataSet):
         return Ndbase
     
     def InterpDisp(self, data_type='DISPbasic1', pers=np.array([10., 15., 20., 25.]), verbose=True):
-        # outindex={'To': 0, 'Vgr': 1, 'Vph': 2,  'amp': 3, 'Np': pers.size}
+        """ Interpolate dispersion curve for a given period array.
+        -----------------------------------------------------------------------------------------------------
+        Input Parameters:
+        data_type       - dispersion data type (default = DISPbasic1, basic aftan results)
+        pers                - period array
+        
+        Output:
+        self.auxiliary_data.DISPbasic1interp, self.auxiliary_data.DISPbasic2interp,
+        self.auxiliary_data.DISPpmf1interp, self.auxiliary_data.DISPpmf2interp
+        -----------------------------------------------------------------------------------------------------
+        """
         staidLst=self.auxiliary_data[data_type].list()
         for staid in staidLst:
             knetwk=str(self.auxiliary_data[data_type][staid].parameters['knetwk'])
@@ -787,7 +797,19 @@ class sw4ASDF(pyasdf.ASDFDataSet):
         return
     
     def GetField(self, data_type='DISPbasic1', fieldtype='Vgr', pers=np.array([10.]), outdir=None, distflag=True ):
-        ### Need Check
+        """ Get the field data
+        -----------------------------------------------------------------------------------------------------
+        Input Parameters:
+        data_type       - dispersion data type (default = DISPbasic1, basic aftan results)
+        fieldtype         - field data type( Vgr, Vph amp)
+        pers                - period array
+        outdir             - directory for txt output
+        distflag           - whether to output distance or not
+        Output:
+        self.auxiliary_data.FieldDISPbasic1interp, self.auxiliary_data.FieldDISPbasic2interp,
+        self.auxiliary_data.FieldDISPpmf1interp, self.auxiliary_data.FieldDISPpmf2interp
+        -----------------------------------------------------------------------------------------------------
+        """
         data_type=data_type+'interp'
         tempdict={'Vgr': 'Tgr', 'Vph': 'Tph', 'amp': 'Amp'}
         if distflag==True:
@@ -848,7 +870,7 @@ class sw4ASDF(pyasdf.ASDFDataSet):
     
     def aftanMP(self, outdir, deletedisp=True, compindex=0, tb=-13.5, inftan=InputFtanParam(), phvelname ='./ak135.disp', basic1=True, basic2=False,
             pmf1=False, pmf2=False ):
-        """
+        """ aftan analysis for ASDF Dataset using multiprocessing module
         Code Notes:
         I tried to use multiprocessing.Manager to define a list shared by all the process and every lock the process when writing to the shared list,
         but unfortunately this somehow doesn't work. As a result, I write this aftan with multiprocessing.Pool, it only speed up about twice compared
