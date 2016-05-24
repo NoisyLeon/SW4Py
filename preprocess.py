@@ -11,8 +11,8 @@ SLst.Write2Input(infname='/lustre/janus_scratch/life9360/sw4_working_dir/ak135_t
 # SLst.Write2Input(infname='/lustre/janus_scratch/life9360/sw4_working_dir/homo_test.in')
 
 
-BLst=vmodel.BlockLst();
+# BLst=vmodel.BlockLst();
 # BLst.AddSingle(vs=3.5)
-BLst.ak135(zmax=200.);
-BLst.Write2Input(infname='/lustre/janus_scratch/life9360/sw4_working_dir/ak135_test.in');
+# BLst.ak135(zmax=200.);
+# BLst.Write2Input(infname='/lustre/janus_scratch/life9360/sw4_working_dir/ak135_test.in');
 # BLst.Write2Input(infname='/lustre/janus_scratch/life9360/sw4_working_dir/homo_test.in');

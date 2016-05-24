@@ -281,15 +281,15 @@ class rBlock(object):
     An object to handle single rfile block model for SW4
     --------------------------------------------------------------------------------------------------------------
     Parameters:
-    number                                  - number(index) of rfile block
-    xyextent, xzextent, yzextent - extent in xy, xz, yz
-    data                                        - data array
+    number                                     - number(index) of rfile block
+    xyextent, xzextent, yzextent  - extent in xy, xz, yz
+    data                                          - data array
     
     header variables:
-    hh, hv                                    - horizontal/vertical grid spacing
-    z0                                           - upper depth 
-    nc                                           - number of component
-    ni, nj, nk                                - number of grid point in x, y, z direction
+    hh, hv                                      - horizontal/vertical grid spacing
+    z0                                             - upper depth 
+    nc                                            - number of component
+    ni, nj, nk                                 - number of grid point in x, y, z direction
     --------------------------------------------------------------------------------------------------------------
     Modified from pysw4 by Shahar Shani-Kadmiel
     """
@@ -376,12 +376,12 @@ class rModel(object):
     An object to rfile header and blocks for SW4
     --------------------------------------------------------------------------------------------------------------
     Parameters:
-    rblocks                         - list of rfile block
+    rblocks                          - list of rfile block
 
     Header variables:
     magic                            - horizontal/vertical grid spacing
     precision                       - upper depth 
-    attenuation                    - number of component
+    attenuation                  - number of component
     az, lon0, lat0                - azimuth / origin of model coordinate
     proj_str                        - projection string
     nb                                 - number of blocks
@@ -704,13 +704,13 @@ class rModel(object):
     
     def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mname='vs', zmin=0, zmax=None, nb=None):
         """
-        Inplement block anomaly
+        Implement block anomaly
         --------------------------------------------------------------------------------------------------------------
         Input Parameters:
         xmin, xmax, ymin, ymax, zmin, zmax - defines the bound (in meter)
-        dm                                                          - model parameter anomaly in percentage
-        mname                                                   - model variable name
-        nb                                                           - block number(index)
+        dm                                                           - model parameter anomaly in percentage
+        mname                                                    - model variable name
+        nb                                                            - block number(index)
         --------------------------------------------------------------------------------------------------------------
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
@@ -761,8 +761,8 @@ class rModel(object):
         Inplement homogeneous cylinder anomaly
         --------------------------------------------------------------------------------------------------------------
         Input Parameters:
-        x0, y0     - the center of the circle( in meter)
-        R             - radius (in meter)
+        x0, y0       - the center of the circle( in meter)
+        R              - radius (in meter)
         dm           - model parameter anomaly in percentage
         mname    - model variable name
         nb            - block number(index)
@@ -800,7 +800,7 @@ class rModel(object):
             xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
             tempdata=self.rblocks[b].data[:, :, :, mtype]
             dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
-            Rlogic = dArr < R;
+            Rlogic = dArr <= R;
             if b!=0:
                 if zmax==None:
                    zlogic=zgrid>=zmin
@@ -816,8 +816,8 @@ class rModel(object):
         Inplement linear varying cylinder anomaly
         --------------------------------------------------------------------------------------------------------------
         Input Parameters:
-        x0, y0     - the center of the circle( in meter)
-        R             - radius (in meter)
+        x0, y0       - the center of the circle( in meter)
+        R              - radius (in meter)
         dm           - model parameter anomaly in percentage
         mname    - model variable name
         nb            - block number(index)
@@ -869,8 +869,8 @@ class rModel(object):
         Inplement cosine varying cylinder anomaly.
         --------------------------------------------------------------------------------------------------------------
         Input Parameters:
-        x0, y0     - the center of the circle( in meter)
-        R             - radius (in meter)
+        x0, y0       - the center of the circle( in meter)
+        R              - radius (in meter)
         dm           - model parameter anomaly in percentage
         mname    - model variable name
         nb            - block number(index)
@@ -878,7 +878,7 @@ class rModel(object):
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
         mtype=dictparam[mname]
-        if nb!=1:
+        if nb>1:
             print 'Adding cosine cynlinder anomaly to',mname,'!'
         else:
             print 'Adding cosine cynlinder to topography !'
@@ -893,12 +893,13 @@ class rModel(object):
                 xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
                 tempdata=self.rblocks[b].data[:, :, :, mtype]
                 dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
-                delD = R - dArr
+                RlogicIn = dArr <= R
                 if zmax==None:
                     zlogic=zgrid>=zmin
                 else:
                     zlogic=(zgrid>=zmin)*(zgrid<=zmax)
-                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zlogic *0.5 * (np.sign(delD) + 1) * ( 1+np.cos( np.pi* dArr / R )/2. ) 
+                LogicIn=zlogic*RlogicIn
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * LogicIn * ( 1+np.cos( np.pi* dArr / R ) )/2. 
         else:
             b=nb-1
             xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
@@ -908,7 +909,7 @@ class rModel(object):
             xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
             tempdata=self.rblocks[b].data[:, :, :, mtype]
             dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
-            delD = R - dArr
+            RlogicIn = dArr <= R
             if b!=0:
                 if zmax==None:
                    zlogic=zgrid>=zmin
@@ -916,7 +917,8 @@ class rModel(object):
                    zlogic=(zgrid>=zmin)*(zgrid<=zmax)
             else:
                 zlogic=1.;
-            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zlogic *0.5 * (np.sign(delD) + 1) * ( 1+np.cos( np.pi* dArr / R )/2. ) 
+            LogicIn=zlogic*RlogicIn
+            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * LogicIn * ( 1+np.cos( np.pi* dArr / R ) )/2. 
         return
     
     def CylinderCosineSediment(self, x0, y0, R, zmax, vs, vp=None, rho=None ):
@@ -924,15 +926,14 @@ class rModel(object):
         Implement cosine varying cylindrical sedimentary basin to the first rblock.
         --------------------------------------------------------------------------------------------------------------
         Input Parameters:
-        x0, y0     - the center of the circle( in meter)
-        R             - radius (in meter)
-        zmax       - maximum depth of the basin (in meter)
+        x0, y0       - the center of the circle( in meter)
+        R              - radius (in meter)
+        zmax        - maximum depth of the basin (in meter)
         vs             - vs for the basin (in m/s)
         vp, rho     - vp/rho for the basin (default is Brocher Crust)
         --------------------------------------------------------------------------------------------------------------
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
-        mtype=dictparam[mname]
         xArr=np.arange(self.rblocks[1].ni)*self.rblocks[1].hh
         yArr=np.arange(self.rblocks[1].nj)*self.rblocks[1].hh
         zArr=np.arange(self.rblocks[1].nk)*self.rblocks[1].hv
@@ -953,12 +954,13 @@ class rModel(object):
         tempdataRho=self.rblocks[1].data[:, :, :, 0]
         dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
         delD = R - dArr
-        zmaxArr= 0.5 * (np.sign(delD) + 1) * ( 1+np.cos( np.pi* dArr / R )/2. ) * zmax
-        zlogicT = zgrid <= zmaxArr
-        zlogicB = zgrid > zmaxArr
-        self.rblocks[1].data[:, :, :, 0] = zlogicT * rho+ tempdataRho[zlogicB]
-        self.rblocks[1].data[:, :, :, 1] = zlogicT * vp+ tempdataVp[zlogicB]
-        self.rblocks[1].data[:, :, :, 2] = zlogicT * vs+ tempdataVs[zlogicB]
+        zmaxArr= 0.5 * (np.sign(delD) + 1) * ( 1+np.cos( np.pi* dArr / R ) ) /2.* zmax
+        RlogicIn = dArr <= R
+        zlogicT = (zgrid <= zmaxArr)*RlogicIn
+        zlogicB = np.logical_not(zlogicT)
+        self.rblocks[1].data[:, :, :, 0] = zlogicT * rho+ tempdataRho*zlogicB
+        self.rblocks[1].data[:, :, :, 1] = zlogicT * vp+ tempdataVp*zlogicB
+        self.rblocks[1].data[:, :, :, 2] = zlogicT * vs+ tempdataVs*zlogicB
         return 
     
     def read_hdr(self, f):

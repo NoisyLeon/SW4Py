@@ -3,6 +3,7 @@
 if [ "$#" -ne 3 ];then
 	echo "Wrong Input!"
 	echo "Input: Vsmin(km/s) h(km) fmax(Hz)"
+	echo "fmax=2.5fc"
 	exit 1
 fi
 args=("$@")
