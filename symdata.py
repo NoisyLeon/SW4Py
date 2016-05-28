@@ -605,6 +605,9 @@ class sw4ASDF(pyasdf.ASDFDataSet):
         StaInv=SLst.GetInventory() 
         self.add_stationxml(StaInv)
         for sta in SLst.stations:
+            # if abs(sta.x/1000.-1500.)<100.:
+            # print sta.x/100.
+                # continue
             if sta.variables == 'displacement':
                 sacsfx=''
             else:
@@ -901,6 +904,9 @@ class sw4ASDF(pyasdf.ASDFDataSet):
             stla=self.waveforms[station_id].coordinates['latitude']
             tr.stats.sac.stlo=stlo*100. # see stations.StaLst.GetInventory
             tr.stats.sac.stla=stla*100.
+            # dist = np.sqrt( (evlo - stlo)**2 + (evla - stla)**2 )
+            # if dist<100:
+            #     continue
             ntrace=sw4trace(tr.data, tr.stats)
             noiseStream.append(ntrace)
             knetwkLst=np.append(knetwkLst, tr.stats.network)

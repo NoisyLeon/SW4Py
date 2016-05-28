@@ -208,9 +208,12 @@ class StaLst(object):
             raise ValueError("At least one of x or y need to be specified!")
         newSLst=StaLst()
         for sta in self.stations:
+            if abs(sta.x/1000.-1500.)<100:
+                continue
             if x!=None:
                 if sta.x==x and sta.y>ymin and sta.y<ymax:
                     newSLst.append(sta)
+            if y!=None:
                 if sta.y==y and sta.x>xmin and sta.x<xmax:
                     newSLst.append(sta)
         return newSLst
