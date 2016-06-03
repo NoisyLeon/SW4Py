@@ -5,11 +5,14 @@ from scipy import stats
 
 
 
-infname = './ak135_VF/Tgr_10.0.txt'
+infname = './ak135_VF_0km/Tgr_10.0.txt'
 inArr=np.loadtxt(infname)
 plt.figure();
 T=inArr[:,2]
 DistArr=inArr[:,3]
+ind=np.argsort(DistArr)
+DistArr=DistArr[ind]
+T=T[ind]
 VgrArr=DistArr/T
 mindist=DistArr.min()
 indexmin=DistArr.argmin()
@@ -21,10 +24,13 @@ plt.xlabel('Distance(km)');
 
 
 
-infname = './ak135_VF/Amp_10.0.txt'
+infname = './ak135_VF_0km/Amp_10.0.txt'
 inArr2=np.loadtxt(infname)
 AmpArr=inArr2[:,2]
 DistArr=inArr2[:,3]
+ind=np.argsort(DistArr)
+DistArr=DistArr[ind]
+AmpArr=AmpArr[ind]
 plt.figure();
 mindist=DistArr.min()
 indexmin=DistArr.argmin()

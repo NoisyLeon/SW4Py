@@ -53,18 +53,18 @@ ak135modelCPS.reshape(ak135modelCPS.size)
 class Blockmodel(object):
     """
     An object to handle single block model for SW4
-    --------------------------------------------------------------------------------------------------------------
+    =============================================================
     Parameters:
     vp, vs                 - P/S wave velocity real > 0 m/s none
     rho                     - density real > 0 kg/m^3 none
     vpgrad, vsgrad  - vertical gradient for vp/vs real m/s/m none
     rhograd              - vertical gradient for rho real kg/m^4 none
     Qp, Qs               - P/S wave quality factor real > 0 none none
-    x1, x2                - minimum/maximum x-dim for the box shaped sub-region 
-    y1, y2                - minimum/maximum y-dim for the box shaped sub-region 
-    z1, z2                - minimum/maximum z-dim for the box shaped sub-region 
+    x1, x2                 - minimum/maximum x-dim for the box shaped sub-region 
+    y1, y2                 - minimum/maximum y-dim for the box shaped sub-region 
+    z1, z2                 - minimum/maximum z-dim for the box shaped sub-region 
     absdepth           - z1 and z2 relative to topography (0), or absolute z-coordinate (1)
-    --------------------------------------------------------------------------------------------------------------
+    =============================================================
     """
     def __init__(self, vp=None, vs=None, rho=None, Qp=None, Qs=None, vpgrad=None, vsgrad=None, rhograd=None,
             absdepth=None, x1=None, x2=None, y1=None, y2=None, z1=None, z2=None):
@@ -115,8 +115,8 @@ class BlockLst(object):
 
     def __getitem__(self, index):
         """
-        __getitem__ method of obspy.Stream objects.
-        :return: Trace objects
+        __getitem__ method of BlockLst objects.
+        :return: Blockmodel objects
         """
         if isinstance(index, slice):
             return self.__class__(blocks=self.blocks.__getitem__(index))
@@ -138,7 +138,15 @@ class BlockLst(object):
             absdepth=None, x1=None, x2=None, y1=None, y2=None, z1=None, z2=None):
         """
         Add single block to the model.
-        If not specified, vp and rho will be calculated by assuming Brocher crust.
+        ========================================================================================
+        Input Parameters:
+        vs, vp, rho                       - S/P wave velocity, density
+                                                 If vp/rho not specified, vp and rho will be calculated by assuming Brocher crust.
+        Qp, Qs                             - P/S wave quality factor
+        vpgrad, vsgrad, rhograd - S/P wave velocity, density gradient( C(z) = C + z*Cgrad, z=0 at surface, NOT at z1)
+        absdepth                         - z1/z2 are relative to topography(0) or absolute z-coordinate
+        x1, x2, y1, y2, z1, z2       - define the block region
+        ========================================================================================
         """
         if vp ==None:
             vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4
@@ -153,11 +161,11 @@ class BlockLst(object):
 
     def ak135(self, zmax=410., CPS=True):
         """ ak135 model
-        -----------------------------------------------------------------------------------------------------
+        =================================================================
         Input Parameters:
         zmax    - maximum depth
         CPS      - use layered ak135 model used in CPS(homogeneous in each layer) or not
-        -----------------------------------------------------------------------------------------------------
+        =================================================================
         """
         if zmax>660.:
             raise ValueError('Depth is too large for Cartesian simulation.')
@@ -279,18 +287,18 @@ class BlockLst(object):
 class rBlock(object):
     """
     An object to handle single rfile block model for SW4
-    --------------------------------------------------------------------------------------------------------------
+    ===================================================================
     Parameters:
-    number                                     - number(index) of rfile block
-    xyextent, xzextent, yzextent  - extent in xy, xz, yz
-    data                                          - data array
+    number                                    - number(index) of rfile block
+    xyextent, xzextent, yzextent    - extent in xy, xz, yz
+    data                                         - data array
     
-    header variables:
+    --------------------------------------------- header variables ----------------------------------------------
     hh, hv                                      - horizontal/vertical grid spacing
-    z0                                             - upper depth 
+    z0                                            - upper depth 
     nc                                            - number of component
-    ni, nj, nk                                 - number of grid point in x, y, z direction
-    --------------------------------------------------------------------------------------------------------------
+    ni, nj, nk                                  - number of grid point in x, y, z direction
+    ===================================================================
     Modified from pysw4 by Shahar Shani-Kadmiel
     """
     def __init__(self, number=0, hh=None, hv=None, z0=0.0, nc=3, ni=None, nj=None, nk=None,
@@ -346,6 +354,7 @@ class rBlock(object):
         return self.data[:,:,:,4]
     
     def read_block_hdr(self, f):
+        """Read rfile block header"""
         hh,hv,z0,nc,ni,nj,nk = np.fromfile(f, block_hdr_dtype, 1)[0]
         self.hh = hh
         self.hv = hv
@@ -374,18 +383,18 @@ class rBlock(object):
 class rModel(object):
     """
     An object to rfile header and blocks for SW4
-    --------------------------------------------------------------------------------------------------------------
+    ===================================================================
     Parameters:
-    rblocks                          - list of rfile block
+    rblocks                          - list of rfile block (rBlock objects)
 
-    Header variables:
+    --------------------------------------------- header variables ----------------------------------------------
     magic                            - horizontal/vertical grid spacing
     precision                       - upper depth 
-    attenuation                  - number of component
-    az, lon0, lat0                - azimuth / origin of model coordinate
-    proj_str                        - projection string
+    attenuation                   - number of component
+    az, lon0, lat0                 - azimuth / origin of model coordinate
+    proj_str                         - projection string
     nb                                 - number of blocks
-    --------------------------------------------------------------------------------------------------------------
+    ===================================================================
     """
     def __init__(self, filename=None, magic=1, precision = 4, attenuation = 0, az = 0., lon0= -118, lat0=37,
                  proj_str  = '+proj=utm +ellps=WGS84 +no_defs', nb = 0, rblocks=None):
@@ -426,8 +435,8 @@ class rModel(object):
 
     def __getitem__(self, index):
         """
-        __getitem__ method of obspy.Stream objects.
-        :return: Trace objects
+        __getitem__ method of rModel objects.
+        :return: rBlock objects
         """
         if isinstance(index, slice):
             return self.__class__(rblocks=self.rblocks.__getitem__(index))
@@ -460,6 +469,12 @@ class rModel(object):
     def AddTopoBlock(self, ni, nj, hh=None, hv=None, data=np.array([])):
         """
         Add topography block as the first block
+        ====================================================
+        Input Parameters:
+        ni, nj   - number of x/y points
+        hh, hv - horizontal/vertical grid spacing
+        data    - input topogrphy data array
+        ====================================================
         """
         nk=1
         nc=1
@@ -493,6 +508,17 @@ class rModel(object):
         vs=None, vp=None, rho=None, Qs=None, Qp=None, vsgrad=None, vpgrad=None, rhograd=None, Qsgrad=None, Qpgrad=None):
         """
         Add single rfile block to the model
+        ========================================================================
+        Input Parameters:
+        ni, nj, nk     - number of x/y/z points
+        hh, hv         - horizontal/vertical grid spacing
+        z0                - upper z coordinate
+        data            - input velocity data array
+        vs, vp, rho   - S/P wave velocity, density
+                             If vp/rho not specified, vp and rho will be calculated by assuming Brocher crust.
+        Qp, Qs         - P/S wave quality factor
+        *grad           - gradient ( C(z) = C + (z-z0)*Cgrad )
+        ========================================================================
         """
         if self.attenuation ==1:
             nc=5
@@ -591,6 +617,13 @@ class rModel(object):
     def ak135(self, ni, nj, zmin=0., zmax=410.,  hh=None, hv=None, CPS=True):
         """
         Implement ak135 model
+        ====================================================
+        Input Parameters:
+        ni, nj            - number of x/y points
+        zmin, zmax  - manimum/maximum depth
+        hh, hv          - horizontal/vertical grid spacing
+        CPS              - whether to use layered ak135 from CPS or not
+        ====================================================
         """
         if zmax>660.:
             raise ValueError('Depth is too large for Cartesian simulation.')
@@ -705,13 +738,13 @@ class rModel(object):
     def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mname='vs', zmin=0, zmax=None, nb=None):
         """
         Implement block anomaly
-        --------------------------------------------------------------------------------------------------------------
+        ========================================================================
         Input Parameters:
-        xmin, xmax, ymin, ymax, zmin, zmax - defines the bound (in meter)
+        xmin, xmax, ymin, ymax, zmin, zmax   - defines the bound (in meter)
         dm                                                           - model parameter anomaly in percentage
         mname                                                    - model variable name
         nb                                                            - block number(index)
-        --------------------------------------------------------------------------------------------------------------
+        ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
         mtype=dictparam[mname]
@@ -729,44 +762,44 @@ class rModel(object):
                 # outputs are of shape (N, M, P) for 'xy' indexing and (M, N, P) for 'ij' indexing.
                 xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
                 tempdata=self.rblocks[b].data[:, :, :, mtype]
-                xlogic=(xgrid>=xmin)*(xgrid<=xmax)
-                ylogic=(ygrid>=ymin)*(ygrid<=ymax)
+                xindex=(xgrid>=xmin)*(xgrid<=xmax)
+                yindex=(ygrid>=ymin)*(ygrid<=ymax)
                 if zmax==None:
-                    zlogic=zgrid>=zmin
+                    zindex=zgrid>=zmin
                 else:
-                    zlogic=(zgrid>=zmin)*(zgrid<=zmax)
-                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xlogic*ylogic*zlogic
+                    zindex=(zgrid>=zmin)*(zgrid<=zmax)
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xindex*yindex*zindex
         else:
             b=nb-1
             xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
             yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
             zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
-            # cArr=np.arange(self.rblocks[b].nc)
             xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
             tempdata=self.rblocks[b].data[:, :, :, mtype]
-            xlogic=(xgrid>=xmin)*(xgrid<=xmax)
-            ylogic=(ygrid>=ymin)*(ygrid<=ymax)
+            xindex=(xgrid>=xmin)*(xgrid<=xmax)
+            yindex=(ygrid>=ymin)*(ygrid<=ymax)
             if b!=0:
                 if zmax==None:
-                   zlogic=zgrid>=zmin
+                   zindex=zgrid>=zmin
                 else:
-                   zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+                   zindex=(zgrid>=zmin)*(zgrid<=zmax)
             else:
-                zlogic=1.;
-            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xlogic*ylogic*zlogic
+                zindex=1.;
+            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xindex*yindex*zindex
         return
     
     def CylinderHomoAnomaly(self, x0, y0, R, dm, mname='vs', zmin=0, zmax=None, nb=None):
         """
         Inplement homogeneous cylinder anomaly
-        --------------------------------------------------------------------------------------------------------------
+        ========================================================================
         Input Parameters:
-        x0, y0       - the center of the circle( in meter)
-        R              - radius (in meter)
-        dm           - model parameter anomaly in percentage
-        mname    - model variable name
-        nb            - block number(index)
-        --------------------------------------------------------------------------------------------------------------
+        x0, y0             - the center of the circle( in meter)
+        R                   - radius (in meter)
+        dm                 - model parameter anomaly in percentage
+        mname         - model variable name
+        zmin, zmax   - defines the upper/lower bound (in meter)
+        nb                 - block number(index)
+        ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
         mtype=dictparam[mname]
@@ -785,12 +818,12 @@ class rModel(object):
                 xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
                 tempdata=self.rblocks[b].data[:, :, :, mtype]
                 dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
-                Rlogic = dArr < R;
+                Rindex = dArr < R
                 if zmax==None:
-                    zlogic=zgrid>=zmin
+                    zindex=zgrid>=zmin
                 else:
-                    zlogic=(zgrid>=zmin)*(zgrid<=zmax)
-                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rlogic*zlogic
+                    zindex=(zgrid>=zmin)*(zgrid<=zmax)
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rindex*zindex
         else:
             b=nb-1
             xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
@@ -800,28 +833,29 @@ class rModel(object):
             xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
             tempdata=self.rblocks[b].data[:, :, :, mtype]
             dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
-            Rlogic = dArr <= R;
+            Rindex = dArr <= R;
             if b!=0:
                 if zmax==None:
-                   zlogic=zgrid>=zmin
+                   zindex=zgrid>=zmin
                 else:
-                   zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+                   zindex=(zgrid>=zmin)*(zgrid<=zmax)
             else:
-                zlogic=1.;
-            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rlogic*zlogic
+                zindex=1.;
+            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rindex*zindex
         return
         
     def CylinderLinearAnomaly(self, x0, y0, R, dm, mname='vs', zmin=0, zmax=None, nb=None):
         """
         Inplement linear varying cylinder anomaly
-        --------------------------------------------------------------------------------------------------------------
+        ========================================================================
         Input Parameters:
-        x0, y0       - the center of the circle( in meter)
-        R              - radius (in meter)
-        dm           - model parameter anomaly in percentage
-        mname    - model variable name
-        nb            - block number(index)
-        --------------------------------------------------------------------------------------------------------------
+        x0, y0             - the center of the circle( in meter)
+        R                   - radius (in meter)
+        dm                 - model parameter anomaly in percentage
+        mname         - model variable name
+        zmin, zmax   - defines the upper/lower bound (in meter)
+        nb                  - block number(index)
+        ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
         mtype=dictparam[mname]
@@ -839,42 +873,44 @@ class rModel(object):
                 # outputs are of shape (N, M, P) for 'xy' indexing and (M, N, P) for 'ij' indexing.
                 xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
                 tempdata=self.rblocks[b].data[:, :, :, mtype]
-                delD = R - np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2);
+                delD = R - np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+                Rindex = (delD>=0)
                 if zmax==None:
-                    zlogic=zgrid>=zmin
+                    zindex=zgrid>=zmin
                 else:
-                    zlogic=(zgrid>=zmin)*(zgrid<=zmax)
-                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zlogic *0.5 * (np.sign(delD) + 1) * delD/R 
+                    zindex=(zgrid>=zmin)*(zgrid<=zmax)
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zindex * Rindex * delD/R 
         else:
             b=nb-1
             xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
             yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
             zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
-            # cArr=np.arange(self.rblocks[b].nc)
             xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
             tempdata=self.rblocks[b].data[:, :, :, mtype]
-            delD = R - np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2);
+            delD = R - np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+            Rindex = (delD>=0)
             if b!=0:
                 if zmax==None:
-                   zlogic=zgrid>=zmin
+                   zindex=zgrid>=zmin
                 else:
-                   zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+                   zindex=(zgrid>=zmin)*(zgrid<=zmax)
             else:
-                zlogic=1.;
-            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zlogic *0.5 * (np.sign(delD) + 1) * delD/R 
+                zindex=1.;
+            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * zindex * Rindex * delD/R 
         return
     
     def CylinderCosineAnomaly(self, x0, y0, R, dm, mname='vs', zmin=0, zmax=None, nb=None):
         """
         Inplement cosine varying cylinder anomaly.
-        --------------------------------------------------------------------------------------------------------------
+        ========================================================================
         Input Parameters:
-        x0, y0       - the center of the circle( in meter)
-        R              - radius (in meter)
-        dm           - model parameter anomaly in percentage
-        mname    - model variable name
-        nb            - block number(index)
-        --------------------------------------------------------------------------------------------------------------
+        x0, y0             - the center of the circle( in meter)
+        R                   - radius (in meter)
+        dm                 - model parameter anomaly in percentage
+        mname         - model variable name
+        zmin, zmax   - defines the upper/lower bound (in meter)
+        nb                  - block number(index)
+        ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
         mtype=dictparam[mname]
@@ -893,45 +929,44 @@ class rModel(object):
                 xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
                 tempdata=self.rblocks[b].data[:, :, :, mtype]
                 dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
-                RlogicIn = dArr <= R
+                Rindex = (dArr <= R)
                 if zmax==None:
-                    zlogic=zgrid>=zmin
+                    zindex=zgrid>=zmin
                 else:
-                    zlogic=(zgrid>=zmin)*(zgrid<=zmax)
-                LogicIn=zlogic*RlogicIn
-                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * LogicIn * ( 1+np.cos( np.pi* dArr / R ) )/2. 
+                    zindex=(zgrid>=zmin)*(zgrid<=zmax)
+                IndexIn=zindex*Rindex
+                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * IndexIn * ( 1+np.cos( np.pi* dArr / R ) )/2. 
         else:
             b=nb-1
             xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
             yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
             zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
-            # cArr=np.arange(self.rblocks[b].nc)
             xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
             tempdata=self.rblocks[b].data[:, :, :, mtype]
             dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
-            RlogicIn = dArr <= R
+            Rindex = (dArr <= R)
             if b!=0:
                 if zmax==None:
-                   zlogic=zgrid>=zmin
+                   zindex=zgrid>=zmin
                 else:
-                   zlogic=(zgrid>=zmin)*(zgrid<=zmax)
+                   zindex=(zgrid>=zmin)*(zgrid<=zmax)
             else:
-                zlogic=1.;
-            LogicIn=zlogic*RlogicIn
-            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * LogicIn * ( 1+np.cos( np.pi* dArr / R ) )/2. 
+                zindex=1.;
+            IndexIn=zindex*Rindex
+            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * IndexIn * ( 1+np.cos( np.pi* dArr / R ) )/2. 
         return
     
     def CylinderCosineSediment(self, x0, y0, R, zmax, vs, vp=None, rho=None ):
         """
         Implement cosine varying cylindrical sedimentary basin to the first rblock.
-        --------------------------------------------------------------------------------------------------------------
+        ========================================================================
         Input Parameters:
         x0, y0       - the center of the circle( in meter)
         R              - radius (in meter)
         zmax        - maximum depth of the basin (in meter)
         vs             - vs for the basin (in m/s)
         vp, rho     - vp/rho for the basin (default is Brocher Crust)
-        --------------------------------------------------------------------------------------------------------------
+        ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
         xArr=np.arange(self.rblocks[1].ni)*self.rblocks[1].hh
@@ -939,7 +974,6 @@ class rModel(object):
         zArr=np.arange(self.rblocks[1].nk)*self.rblocks[1].hv
         if zmax > zArr.max():
             raise ValueError('Maximum depth of sedimentary basin is too large!')
-        # cArr=np.arange(self.rblocks[b].nc)
         xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij')
         vs=vs/1000.
         if vp ==None:
@@ -953,15 +987,18 @@ class rModel(object):
         tempdataVp=self.rblocks[1].data[:, :, :, 1]
         tempdataRho=self.rblocks[1].data[:, :, :, 0]
         dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
-        delD = R - dArr
-        zmaxArr= 0.5 * (np.sign(delD) + 1) * ( 1+np.cos( np.pi* dArr / R ) ) /2.* zmax
-        RlogicIn = dArr <= R
-        zlogicT = (zgrid <= zmaxArr)*RlogicIn
-        zlogicB = np.logical_not(zlogicT)
-        self.rblocks[1].data[:, :, :, 0] = zlogicT * rho+ tempdataRho*zlogicB
-        self.rblocks[1].data[:, :, :, 1] = zlogicT * vp+ tempdataVp*zlogicB
-        self.rblocks[1].data[:, :, :, 2] = zlogicT * vs+ tempdataVs*zlogicB
+        Rindex = (dArr <= R)
+        zmaxArr= Rindex * ( 1+np.cos( np.pi* dArr / R ) ) /2.* zmax
+        zIndexT = (zgrid <= zmaxArr)*Rindex
+        zIndexB = np.logical_not(zlogicT)
+        self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
+        self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
+        self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
         return 
+    
+    # def CynlinderRingAnomaly(self, ):
+        
+    
     
     def read_hdr(self, f):
         """
@@ -1061,8 +1098,3 @@ class rModel(object):
                 z=self.rblocks[b].data.reshape(self.rblocks[b].data.size)
                 z.tofile(f)
         return 
-    
-    
-    
-    
-    
