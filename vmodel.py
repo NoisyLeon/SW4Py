@@ -990,15 +990,90 @@ class rModel(object):
         Rindex = (dArr <= R)
         zmaxArr= Rindex * ( 1+np.cos( np.pi* dArr / R ) ) /2.* zmax
         zIndexT = (zgrid <= zmaxArr)*Rindex
-        zIndexB = np.logical_not(zlogicT)
+        zIndexB = np.logical_not(zIndexT)
         self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
         self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
         self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
         return 
     
-    # def CynlinderRingAnomaly(self, ):
-        
-    
+    def CynlinderRingBasin(self, x0, y0, zmax, Rmax, vs, vp=None, rho=None, nr=None, dR=None, Rmin=0, outfname=None):
+        """
+        Implement cosine varying cylindrical sedimentary basin to the first rblock.
+        ========================================================================
+        Input Parameters:
+        x0, y0       - the center of the circle( in meter)
+        zmax        - maximum depth of the basin (in meter)
+        Rmax       - maximum radius (in meter)
+        Rmin        - minimum radius (in meter)
+        nr             - number of rings
+        dR            - ring interval
+        vs             - vs for the basin (in m/s)
+        vp, rho     - vp/rho for the basin (default is Brocher Crust)
+        outfname  - output txt file for CPSPy 
+        ========================================================================
+        """
+        dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
+        xArr=np.arange(self.rblocks[1].ni)*self.rblocks[1].hh
+        yArr=np.arange(self.rblocks[1].nj)*self.rblocks[1].hh
+        zArr=np.arange(self.rblocks[1].nk)*self.rblocks[1].hv
+        if zmax > zArr.max():
+            raise ValueError('Maximum depth of sedimentary basin is too large!')
+        xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij')
+        vs=vs/1000.
+        if vp ==None:
+            vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4
+        if rho==None:
+            rho=1.6612*vp-0.4721*vp**2+0.0671*vp**3-0.0043*vp**4+0.000106*vp**5
+        vs=vs*1000.
+        vp=vp*1000.
+        rho=rho*1000.
+        tempdataVs=self.rblocks[1].data[:, :, :, 2]
+        tempdataVp=self.rblocks[1].data[:, :, :, 1]
+        tempdataRho=self.rblocks[1].data[:, :, :, 0]
+        if nr == None or dR == None:
+            nr = int( (Rmax-Rmin) /self.rblocks[1].hh/10 ) -1
+            dR = 10.*self.rblocks[1].hh
+        dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+        zIndexT=np.zeros(tempdataVs.shape, dtype='bool')
+        HArr=np.array([])
+        RmaxArr=np.array([])
+        RminArr=np.array([])
+        for ir in np.arange(nr):
+            cRmax = Rmax - ir * dR
+            cRmin = Rmax - (ir+1) * dR
+            cRmean=(cRmax+cRmin)/2.
+            Rindex = (dArr <= cRmax) * (dArr > cRmin)
+            H =( np.int( ( 1+np.cos( np.pi* cRmean / Rmax ) ) /2.* zmax / self.rblocks[1].hv) +1.)*  self.rblocks[1].hv
+            print cRmax, cRmin, cRmean, H
+            if H > zmax:
+                H=zmax
+            zmaxArr= Rindex * H
+            zIndexT = zIndexT + (zgrid <= zmaxArr)*Rindex
+            HArr=np.append(HArr, H)
+            RmaxArr=np.append(RmaxArr, cRmax)
+            RminArr=np.append(RminArr, cRmin)
+        Rindex = (dArr <= cRmin)
+        zIndexT = zIndexT + (zgrid <= zmax)*Rindex
+        zIndexB = np.logical_not(zIndexT)
+        HArr=np.append(HArr, zmax)
+        RmaxArr=np.append(RmaxArr, cRmin)
+        RminArr=np.append(RminArr, 0)
+        self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
+        self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
+        self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
+        if outfname != None:
+            vsArr=np.ones(nr+1)*vs
+            vpArr=np.ones(nr+1)*vp
+            rhoArr=np.ones(nr+1)*rho
+            outArr=np.append(vsArr, vpArr)
+            outArr=np.append(outArr, rhoArr)
+            outArr=np.append(outArr, RmaxArr)
+            outArr=np.append(outArr, RminArr)
+            outArr=np.append(outArr, HArr)
+            outArr=outArr.reshape(6,nr+1)
+            outArr=outArr.T
+            np.savetxt(outfname, outArr, fmt='%g')
+        return 
     
     def read_hdr(self, f):
         """
