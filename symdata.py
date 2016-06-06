@@ -951,6 +951,35 @@ class sw4ASDF(pyasdf.ASDFDataSet):
                         'knetwk': str(knetwkLst[i]), 'kstnm': str(kstnmLst[i])}
                     self.add_auxiliary_data(data=arr2_2, data_type='DISPpmf2', path=station_id_aux, parameters=parameters)
         return
+    
+    def PlotStreamsDistance(self, compindex=0, norm_method='trace'):
+            try:
+                evlo=self.events.events[0].origins[0].longitude
+                evla=self.events.events[0].origins[0].latitude
+            except:
+                raise ValueError('No event specified to the datasets!')
+            Str4Plot=obspy.core.Stream()
+
+            for station_id in self.waveforms.list():
+                # Get data from ASDF dataset
+                tr=self.waveforms[station_id].sw4_raw[compindex]
+                stlo=self.waveforms[station_id].coordinates['longitude']*100.
+                stla=self.waveforms[station_id].coordinates['latitude']*100.
+                station_id_aux=tr.stats.network+tr.stats.station
+                if stlo > 1500.:
+                    tr.stats.distance = np.sqrt( (stlo-evlo)**2 + (stla-evla)**2 ) *1000.
+                else:
+                    tr.stats.distance =- np.sqrt( (stlo-evlo)**2 + (stla-evla)**2 ) *1000.
+                if stlo%100 !=0 or abs(stlo-1500.) < 200:
+                    # print tr.stats.distance/1000.
+                    continue
+                print station_id, tr.stats.distance
+                Str4Plot.append(tr)
+
+            Str4Plot.plot(type='section', norm_method='stream', recordlength=600, alpha=1.0, scale=4.0, offset_min=-1500000, offset_max=1500000,
+                        linewidth = 2.5 )
+            # plt.show()
+            return
 
 def aftan4mp(nTr, outdir, inftan):
     print 'aftan analysis for', nTr.stats.network, nTr.stats.station#, i.value#, ntrace.stats.sac.dist
