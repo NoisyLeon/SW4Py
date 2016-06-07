@@ -380,6 +380,67 @@ class rBlock(object):
             f.write(val)
         return
         
+        
+class vprofile(object):
+    def __init__(self, vsArr=np.array([]), vpArr=np.array([]), rhoArr=np.array([]), RmaxArr=np.array([]), RminArr=np.array([]),
+                 z0Arr=np.array([]), HArr=np.array([]), xArr=np.array([]), yArr=np.array([]), dtypeArr=np.array([]) ):
+        """
+        An object to handle vertical profile 
+        ===================================================================
+        output txt format:
+        vs/dvs    vp/dvp    rho/drho    Rmax    Rmin    z0    H    x    y    dtype
+        
+        
+        dtype:
+        0. absolute value in vs/vp/rho
+        1. dvs
+        2. dvp
+        3. drho
+        ===================================================================
+        """
+        self.vsArr=vsArr
+        self.vpArr=vpArr
+        self.rhoArr=rhoArr
+        self.RmaxArr=RmaxArr
+        self.RminArr=RminArr
+        self.z0Arr=z0Arr
+        self.HArr=HArr
+        self.xArr=xArr
+        self.yArr=yArr
+        self.dtypeArr=dtypeArr
+        return
+    
+    def read(self, infname):
+        inArr=np.loadtxt(infname)
+        self.vsArr=inArr[:,0]
+        self.vpArr=inArr[:,1]
+        self.rhoArr=inArr[:,2]
+        self.RmaxArr=inArr[:,3]
+        self.RminArr=inArr[:,4]
+        self.z0Arr=inArr[:,5]
+        self.HArr=inArr[:,6]
+        self.xArr=inArr[:,7]
+        self.yArr=inArr[:,8]
+        self.dtypeArr=inArr[:,9]
+        return
+    
+    def write(self, outfname):
+        N=self.vsArr.size
+        outArr=np.append(self.vsArr, self.vpArr)
+        outArr=np.append(outArr, self.rhoArr)
+        outArr=np.append(outArr, self.RmaxArr)
+        outArr=np.append(outArr, self.RminArr)
+        outArr=np.append(outArr, self.z0Arr)
+        outArr=np.append(outArr, self.HArr)
+        outArr=np.append(outArr, self.xArr)
+        outArr=np.append(outArr, self.yArr)
+        outArr=np.append(outArr, self.dtypeArr)
+        outArr=outArr.reshape(10, N)
+        outArr=outArr.T
+        np.savetxt(outfname, outArr, fmt='%g')
+        return
+
+
 class rModel(object):
     """
     An object to rfile header and blocks for SW4
@@ -408,6 +469,7 @@ class rModel(object):
         self.proj_str = proj_str
         self.nb = nb
         self.rblocks = []
+        self.Vprofile=vprofile()
         if isinstance(rblocks, rBlock):
             rblocks = [rblocks]
         if rblocks:
@@ -734,7 +796,6 @@ class rModel(object):
                                     vsgrad=vsgrad, vpgrad=vpgrad, rhograd=rhograd, Qsgrad=Qsgrad, Qpgrad=Qpgrad)
         return
 
-    
     def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mname='vs', zmin=0, zmax=None, nb=None):
         """
         Implement block anomaly
@@ -829,7 +890,6 @@ class rModel(object):
             xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
             yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
             zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
-            # cArr=np.arange(self.rblocks[b].nc)
             xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
             tempdata=self.rblocks[b].data[:, :, :, mtype]
             dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
@@ -842,6 +902,25 @@ class rModel(object):
             else:
                 zindex=1.;
             self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rindex*zindex
+        ### Add anomaly to vprofile object
+        if mname=='vs':
+            self.Vprofile.vsArr=np.append( self.Vprofile.vsArr, dm)
+            self.Vprofile.dtypeArr=np.append( self.Vprofile.dtypeArr, 1)
+        elif mname=='vp':
+            self.Vprofile.vpArr=np.append( self.Vprofile.vpArr,  dm)
+            self.Vprofile.dtypeArr=np.append( self.Vprofile.dtypeArr, 2)
+        elif mname=='rho':
+            self.Vprofile.rhoArr=np.append( self.Vprofile.rhoArr, dm)
+            self.Vprofile.dtypeArr=np.append( self.Vprofile.dtypeArr, 3)     
+        self.Vprofile.xArr=np.append( self.Vprofile.xArr, x0)
+        self.Vprofile.yArr=np.append( self.Vprofile.yArr, y0)
+        self.Vprofile.RmaxArr=np.append( self.Vprofile.RmaxArr, R)
+        self.Vprofile.RminArr=np.append( self.Vprofile.RminArr, 0)
+        if zmax==None:
+            self.Vprofile.HArr=np.append( self.Vprofile.HArr, 9999)
+        else:
+            self.Vprofile.HArr=np.append( self.Vprofile.HArr, zmax-zmin)
+        self.Vprofile.z0Arr=np.append( self.Vprofile.z0Arr, zmin)
         return
         
     def CylinderLinearAnomaly(self, x0, y0, R, dm, mname='vs', zmin=0, zmax=None, nb=None):
@@ -1038,13 +1117,14 @@ class rModel(object):
         HArr=np.array([])
         RmaxArr=np.array([])
         RminArr=np.array([])
+        ### 
         for ir in np.arange(nr):
             cRmax = Rmax - ir * dR
             cRmin = Rmax - (ir+1) * dR
             cRmean=(cRmax+cRmin)/2.
             Rindex = (dArr <= cRmax) * (dArr > cRmin)
             H =( np.int( ( 1+np.cos( np.pi* cRmean / Rmax ) ) /2.* zmax / self.rblocks[1].hv) +1.)*  self.rblocks[1].hv
-            print cRmax, cRmin, cRmean, H
+            # print cRmax, cRmin, cRmean, H
             if H > zmax:
                 H=zmax
             zmaxArr= Rindex * H
@@ -1061,18 +1141,26 @@ class rModel(object):
         self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
         self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
         self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
+        vsArr=np.ones(nr+1)*vs
+        vpArr=np.ones(nr+1)*vp
+        rhoArr=np.ones(nr+1)*rho
+        xArr=np.ones(nr+1) * x0
+        yArr=np.ones(nr+1) * y0
+        z0Arr=np.ones(nr+1) * 0.
+        dtypeArr=np.ones(nr+1) * 0
+        ### Add ring basins to vprofile object
+        self.Vprofile.vsArr=np.append( self.Vprofile.vsArr, vsArr)
+        self.Vprofile.vpArr=np.append( self.Vprofile.vpArr, vpArr)
+        self.Vprofile.rhoArr=np.append( self.Vprofile.rhoArr, rhoArr)
+        self.Vprofile.xArr=np.append( self.Vprofile.xArr, xArr)
+        self.Vprofile.yArr=np.append( self.Vprofile.yArr, yArr)
+        self.Vprofile.RmaxArr=np.append( self.Vprofile.RmaxArr, RmaxArr)
+        self.Vprofile.RminArr=np.append( self.Vprofile.RminArr, RminArr)
+        self.Vprofile.HArr=np.append( self.Vprofile.HArr, HArr)
+        self.Vprofile.z0Arr=np.append( self.Vprofile.z0Arr, z0Arr)
+        self.Vprofile.dtypeArr=np.append( self.Vprofile.dtypeArr, dtypeArr)
         if outfname != None:
-            vsArr=np.ones(nr+1)*vs
-            vpArr=np.ones(nr+1)*vp
-            rhoArr=np.ones(nr+1)*rho
-            outArr=np.append(vsArr, vpArr)
-            outArr=np.append(outArr, rhoArr)
-            outArr=np.append(outArr, RmaxArr)
-            outArr=np.append(outArr, RminArr)
-            outArr=np.append(outArr, HArr)
-            outArr=outArr.reshape(6,nr+1)
-            outArr=outArr.T
-            np.savetxt(outfname, outArr, fmt='%g')
+            self.Vprofile.write(outfname=outfname)
         return 
     
     def read_hdr(self, f):
@@ -1172,4 +1260,6 @@ class rModel(object):
             for b in np.arange(self.nb):                
                 z=self.rblocks[b].data.reshape(self.rblocks[b].data.size)
                 z.tofile(f)
-        return 
+        return
+    
+    
