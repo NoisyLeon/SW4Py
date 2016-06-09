@@ -21,7 +21,7 @@ rmodel.CylinderHomoAnomaly(x0=2300000, y0=300000, R=100000,  dm=0.1, mname='rho'
 rmodel.CylinderHomoAnomaly(x0=700000, y0=300000, R=100000,  dm=-0.1, mname='vs', zmin=0, zmax=20000, nb=2)
 rmodel.CylinderHomoAnomaly(x0=700000, y0=300000, R=100000,  dm=-0.1, mname='vp', zmin=0, zmax=20000, nb=2)
 rmodel.CylinderHomoAnomaly(x0=700000, y0=300000, R=100000,  dm=-0.1, mname='rho', zmin=0, zmax=20000, nb=2)
+rmodel.writeVprofile('./cpsinput_002.txt')
 
-
-rmodel.write('/lustre/janus_scratch/life9360/sw4_working_dir_4mem2d/model_002.rfile')
+# rmodel.write('/lustre/janus_scratch/life9360/sw4_working_dir_4mem2d/model_002.rfile')
 

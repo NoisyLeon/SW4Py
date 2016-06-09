@@ -385,17 +385,14 @@ class vprofile(object):
     def __init__(self, vsArr=np.array([]), vpArr=np.array([]), rhoArr=np.array([]), RmaxArr=np.array([]), RminArr=np.array([]),
                  z0Arr=np.array([]), HArr=np.array([]), xArr=np.array([]), yArr=np.array([]), dtypeArr=np.array([]) ):
         """
-        An object to handle vertical profile 
+        An object to handle vertical profile, will be used by CPSPy
         ===================================================================
         output txt format:
         vs/dvs    vp/dvp    rho/drho    Rmax    Rmin    z0    H    x    y    dtype
         
-        
         dtype:
-        0. absolute value in vs/vp/rho
-        1. dvs
-        2. dvp
-        3. drho
+        0. absolute value for vs/vp/rho
+        1. percentage value for dvs/dvp/drho 
         ===================================================================
         """
         self.vsArr=vsArr
@@ -437,10 +434,91 @@ class vprofile(object):
         outArr=np.append(outArr, self.dtypeArr)
         outArr=outArr.reshape(10, N)
         outArr=outArr.T
-        np.savetxt(outfname, outArr, fmt='%g')
+        self.check()
+        np.savetxt(outfname, outArr, fmt='%g', header='vs/dvs vp/dvp rho/drho Rmax Rmin z0 H x y dtype(0: m, 1: dm)')
         return
-
-
+    
+    def check(self):
+        N = self.vsArr.size
+        for i in xrange(N):
+            x=self.xArr[i]
+            y=self.yArr[i]
+            Rmax=self.RmaxArr[i]
+            H=self.HArr[i]
+            index = (self.xArr==x)* (self.yArr==y) * (self.RmaxArr==Rmax) * (self.HArr==H)
+            if np.any(index):
+                warnings.warn('Profile of same geometry and location exists.', UserWarning, stacklevel=1)
+                return
+        return
+    
+    def add(self, Rmax, Rmin, z0, H, x, y, dtype, vs=None, vp=None, rho=None):
+        """
+        Two kinds of input:
+        1. Rmax or x is an array, the function will assume N vertical profile input(N=Rmax.size or x.size)
+        2. If not, the function will first check if there is any previous profile with same x, y, Rmax. If yes, change
+            vs, vp or rho in the existing profile; if not, add a new profile
+        """
+        if isinstance(x, np.ndarray) or isinstance(Rmax, np.ndarray):
+            if vs ==None or vp == None or rho == None:
+                raise ValueError('For array input, all model parameters must be assigned !')
+            try:
+                N=x.size
+            except:
+                N=Rmax.size
+            ##################################################
+            # Making all the input variables to be numpy array of size N
+            ##################################################
+            if not isinstance(Rmax, np.ndarray):
+                Rmax=np.ones(N)*Rmax
+            if not isinstance(Rmin, np.ndarray):
+                Rmin=np.ones(N)*Rmin
+            if not isinstance(z0, np.ndarray):
+                z0=np.ones(N)*z0
+            if not isinstance(H, np.ndarray):
+                H=np.ones(N)*H
+            if not isinstance(x, np.ndarray):
+                x=np.ones(N)*x
+            if not isinstance(y, np.ndarray):
+                y=np.ones(N)*y
+            if not isinstance(dtype, np.ndarray):
+                dtype=np.ones(N)*dtype
+            if not isinstance(vs, np.ndarray):
+                vs=np.ones(N)*vs
+            if not isinstance(vp, np.ndarray):
+                vp=np.ones(N)*vp
+            if not isinstance(rho, np.ndarray):
+                rho=np.ones(N)*rho
+        else:
+            index = (self.xArr==x)* (self.yArr==y) * (self.RmaxArr==Rmax) * (self.HArr==H)
+            # change model parameters if profile with same geometry/location exist
+            if np.any(index):
+                if vs !=None:
+                    self.vsArr[index]=vs
+                if vp !=None:
+                    self.vpArr[index]=vp
+                if rho !=None:
+                    self.rhoArr[index]=rho
+                return
+            if dtype==0 and (vs ==None or vp == None or rho == None):
+                raise ValueError('For absolute value profile, all model parameters must be assigned !')
+            if vs==None:
+                vs=0.
+            if vp == None:
+                vp=0.
+            if rho == None:
+                rho=0.
+        self.vsArr=np.append( self.vsArr, vs)
+        self.vpArr=np.append( self.vpArr, vp)
+        self.rhoArr=np.append( self.rhoArr, rho)
+        self.xArr=np.append( self.xArr, x)
+        self.yArr=np.append( self.yArr, y)
+        self.RmaxArr=np.append( self.RmaxArr, Rmax)
+        self.RminArr=np.append( self.RminArr, Rmin)
+        self.HArr=np.append( self.HArr, H)
+        self.z0Arr=np.append( self.z0Arr, z0)
+        self.dtypeArr=np.append( self.dtypeArr, dtype)
+        return
+    
 class rModel(object):
     """
     An object to rfile header and blocks for SW4
@@ -903,24 +981,14 @@ class rModel(object):
                 zindex=1.;
             self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rindex*zindex
         ### Add anomaly to vprofile object
-        if mname=='vs':
-            self.Vprofile.vsArr=np.append( self.Vprofile.vsArr, dm)
-            self.Vprofile.dtypeArr=np.append( self.Vprofile.dtypeArr, 1)
-        elif mname=='vp':
-            self.Vprofile.vpArr=np.append( self.Vprofile.vpArr,  dm)
-            self.Vprofile.dtypeArr=np.append( self.Vprofile.dtypeArr, 2)
-        elif mname=='rho':
-            self.Vprofile.rhoArr=np.append( self.Vprofile.rhoArr, dm)
-            self.Vprofile.dtypeArr=np.append( self.Vprofile.dtypeArr, 3)     
-        self.Vprofile.xArr=np.append( self.Vprofile.xArr, x0)
-        self.Vprofile.yArr=np.append( self.Vprofile.yArr, y0)
-        self.Vprofile.RmaxArr=np.append( self.Vprofile.RmaxArr, R)
-        self.Vprofile.RminArr=np.append( self.Vprofile.RminArr, 0)
         if zmax==None:
-            self.Vprofile.HArr=np.append( self.Vprofile.HArr, 9999)
-        else:
-            self.Vprofile.HArr=np.append( self.Vprofile.HArr, zmax-zmin)
-        self.Vprofile.z0Arr=np.append( self.Vprofile.z0Arr, zmin)
+            zmax=9999.
+        if mname=='vs':
+            self.Vprofile.add(Rmax=R, Rmin=0., z0=zmin, H=zmax-zmin, x=x0, y=y0, dtype=1, vs=dm)
+        elif mname=='vp':
+            self.Vprofile.add(Rmax=R, Rmin=0., z0=zmin, H=zmax-zmin, x=x0, y=y0, dtype=1, vp=dm)
+        elif mname=='rho':
+            self.Vprofile.add(Rmax=R, Rmin=0., z0=zmin, H=zmax-zmin, x=x0, y=y0, dtype=1, rho=dm)
         return
         
     def CylinderLinearAnomaly(self, x0, y0, R, dm, mname='vs', zmin=0, zmax=None, nb=None):
@@ -1035,6 +1103,48 @@ class rModel(object):
             self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata * dm * IndexIn * ( 1+np.cos( np.pi* dArr / R ) )/2. 
         return
     
+    def CylinderHomoSediment(self, x0, y0, R, zmax, vs, vp=None, rho=None ):
+        """
+        Implement cylindrical sedimentary basin with constant depth to the first rblock.
+        ========================================================================
+        Input Parameters:
+        x0, y0       - the center of the circle( in meter)
+        R              - radius (in meter)
+        zmax        - maximum depth of the basin (in meter)
+        vs             - vs for the basin (in m/s)
+        vp, rho     - vp/rho for the basin (default is Brocher Crust)
+        ========================================================================
+        """
+        dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
+        xArr=np.arange(self.rblocks[1].ni)*self.rblocks[1].hh
+        yArr=np.arange(self.rblocks[1].nj)*self.rblocks[1].hh
+        zArr=np.arange(self.rblocks[1].nk)*self.rblocks[1].hv
+        if zmax > zArr.max():
+            raise ValueError('Maximum depth of sedimentary basin is too large!')
+        xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij')
+        vs=vs/1000.
+        if vp ==None:
+            vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4
+        if rho==None:
+            rho=1.6612*vp-0.4721*vp**2+0.0671*vp**3-0.0043*vp**4+0.000106*vp**5
+        vs=vs*1000.
+        vp=vp*1000.
+        rho=rho*1000.
+        tempdataVs=self.rblocks[1].data[:, :, :, 2]
+        tempdataVp=self.rblocks[1].data[:, :, :, 1]
+        tempdataRho=self.rblocks[1].data[:, :, :, 0]
+        dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+        Rindex = (dArr <= R)
+        zmaxArr= Rindex * zmax
+        zIndexT = (zgrid <= zmaxArr)*Rindex
+        zIndexB = np.logical_not(zIndexT)
+        self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
+        self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
+        self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
+        
+        return 
+    
+    
     def CylinderCosineSediment(self, x0, y0, R, zmax, vs, vp=None, rho=None ):
         """
         Implement cosine varying cylindrical sedimentary basin to the first rblock.
@@ -1073,21 +1183,23 @@ class rModel(object):
         self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
         self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
         self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
-        return 
+        return
+    
+    
     
     def CynlinderRingBasin(self, x0, y0, zmax, Rmax, vs, vp=None, rho=None, nr=None, dR=None, Rmin=0, outfname=None):
         """
         Implement cosine varying cylindrical sedimentary basin to the first rblock.
         ========================================================================
         Input Parameters:
-        x0, y0       - the center of the circle( in meter)
-        zmax        - maximum depth of the basin (in meter)
-        Rmax       - maximum radius (in meter)
+        x0, y0        - the center of the circle( in meter)
+        zmax         - maximum depth of the basin (in meter)
+        Rmax        - maximum radius (in meter)
         Rmin        - minimum radius (in meter)
-        nr             - number of rings
-        dR            - ring interval
-        vs             - vs for the basin (in m/s)
-        vp, rho     - vp/rho for the basin (default is Brocher Crust)
+        nr              - number of rings
+        dR             - ring interval
+        vs              - vs for the basin (in m/s)
+        vp, rho      - vp/rho for the basin (default is Brocher Crust)
         outfname  - output txt file for CPSPy 
         ========================================================================
         """
@@ -1141,24 +1253,7 @@ class rModel(object):
         self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
         self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
         self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
-        vsArr=np.ones(nr+1)*vs
-        vpArr=np.ones(nr+1)*vp
-        rhoArr=np.ones(nr+1)*rho
-        xArr=np.ones(nr+1) * x0
-        yArr=np.ones(nr+1) * y0
-        z0Arr=np.ones(nr+1) * 0.
-        dtypeArr=np.ones(nr+1) * 0
-        ### Add ring basins to vprofile object
-        self.Vprofile.vsArr=np.append( self.Vprofile.vsArr, vsArr)
-        self.Vprofile.vpArr=np.append( self.Vprofile.vpArr, vpArr)
-        self.Vprofile.rhoArr=np.append( self.Vprofile.rhoArr, rhoArr)
-        self.Vprofile.xArr=np.append( self.Vprofile.xArr, xArr)
-        self.Vprofile.yArr=np.append( self.Vprofile.yArr, yArr)
-        self.Vprofile.RmaxArr=np.append( self.Vprofile.RmaxArr, RmaxArr)
-        self.Vprofile.RminArr=np.append( self.Vprofile.RminArr, RminArr)
-        self.Vprofile.HArr=np.append( self.Vprofile.HArr, HArr)
-        self.Vprofile.z0Arr=np.append( self.Vprofile.z0Arr, z0Arr)
-        self.Vprofile.dtypeArr=np.append( self.Vprofile.dtypeArr, dtypeArr)
+        self.Vprofile.add(Rmax=RmaxArr, Rmin=RminArr, z0=0., H=HArr, x=x0, y=y0, dtype=0, vs=vs, vp=vp, rho=rho)
         if outfname != None:
             self.Vprofile.write(outfname=outfname)
         return 
@@ -1261,5 +1356,8 @@ class rModel(object):
                 z=self.rblocks[b].data.reshape(self.rblocks[b].data.size)
                 z.tofile(f)
         return
+    
+    def writeVprofile(self, filename):
+        self.Vprofile.write(outfname=filename)
     
     
