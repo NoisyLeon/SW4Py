@@ -289,14 +289,14 @@ class rBlock(object):
     An object to handle single rfile block model for SW4
     ===================================================================
     Parameters:
-    number                                    - number(index) of rfile block
-    xyextent, xzextent, yzextent    - extent in xy, xz, yz
-    data                                         - data array
+    number                                     - number(index) of rfile block
+    xyextent, xzextent, yzextent  - extent in xy, xz, yz
+    data                                          - data array
     
     --------------------------------------------- header variables ----------------------------------------------
     hh, hv                                      - horizontal/vertical grid spacing
-    z0                                            - upper depth 
-    nc                                            - number of component
+    z0                                             - upper depth 
+    nc                                             - number of component
     ni, nj, nk                                  - number of grid point in x, y, z direction
     ===================================================================
     Modified from pysw4 by Shahar Shani-Kadmiel
@@ -446,7 +446,7 @@ class vprofile(object):
             Rmax=self.RmaxArr[i]
             H=self.HArr[i]
             index = (self.xArr==x)* (self.yArr==y) * (self.RmaxArr==Rmax) * (self.HArr==H)
-            if np.any(index):
+            if (self.vsArr[index]).size >1:
                 warnings.warn('Profile of same geometry and location exists.', UserWarning, stacklevel=1)
                 return
         return
@@ -1185,8 +1185,6 @@ class rModel(object):
         self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
         return
     
-    
-    
     def CynlinderRingBasin(self, x0, y0, zmax, Rmax, vs, vp=None, rho=None, nr=None, dR=None, Rmin=0, outfname=None):
         """
         Implement cosine varying cylindrical sedimentary basin to the first rblock.
@@ -1359,5 +1357,34 @@ class rModel(object):
     
     def writeVprofile(self, filename):
         self.Vprofile.write(outfname=filename)
+        return
+        
+    def checkInput(self, infname):
+        # grid h=1000 nx=2001 ny=2001 nz=201 proj=utm ellps=WGS84
+        print '=========== Checking input with rfile ==========='
+        with open(infname, 'rb') as f:
+            for line in f.readlines():
+                cline=line.split()
+                if cline[0]=='grid':
+                    cline = line
+                    break
+        h=float( (cline.split('h=')[1].split())[0] )
+        nx=float( (cline.split('nx=')[1].split())[0] )
+        ny=float( (cline.split('ny=')[1].split())[0] )
+        nz=float( (cline.split('nz=')[1].split())[0] )
+        for rblock in self.rblocks:
+            if rblock.hh*rblock.ni != h *nx or rblock.hv*rblock.nj != h *ny:
+                raise ValueError('Incompatible x or y size!')
+            if h != rblock.hv or h != rblock.hh:
+                warnings.warn('Incompatible grid spacing: hv='+str(rblock.hv)+' hh='+str(rblock.hh)+' h='+str(h), UserWarning, stacklevel=1)
+            if rblock.ni != nx or rblock.nj !=ny:
+                warnings.warn('Incompatible ni='+str(rblock.ni) +' nx='+str(nx)+' nj='+str(rblock.nj)+' ny='+str(ny), UserWarning, stacklevel=1)
+        if rblock.hv * (rblock.nk-1) + rblock.z0 < (nz-1) * h:
+            raise ValueError('Depth size too small !')
+        print '===========  Checked input with rfile  ==========='
+        return 
+        
+
+    
     
     
