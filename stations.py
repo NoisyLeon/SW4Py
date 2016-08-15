@@ -7,15 +7,15 @@ class StaInfo(object):
     """An object contains a station information several methods for station related analysis.
     ===========================================================================
     General Parameters:
-    stacode         - station name
-    network        - network
-    chan              - channels for analysis
-    x,y,z              - position for station
+    stacode     - station name
+    network     - network
+    chan        - channels for analysis
+    x,y,z       - position for station
     usgsformat  - output all components in an ASCII text file (default is 0)
-    sacformat     - output all components in a SAC file (default is 1)
+    sacformat   - output all components in a SAC file (default is 1)
     writeEvery  - cycle interval to write the file to disk
-    nsew             - output (x,y,z) component(0) or E, N, Z components(1)
-    variables      - displacement, velocity, div, curl, or strains
+    nsew        - output (x,y,z) component(0) or E, N, Z components(1)
+    variables   - displacement, velocity, div, curl, or strains
     ===========================================================================
     """
     def __init__(self, stacode=None, network='SW4', x=None, y=None, z=0,
@@ -165,10 +165,10 @@ class StaLst(object):
         ==============================================
         Input Parameters:
         xmin, zmin  - minimum position
-        Nx, Ny          - number of stations in x/y directions
-        dx, dy           - spacial interval for x/y
-        x, y               - to define a line for sta.x = x/ sta.y=y
-        network        - network name
+        Nx, Ny      - number of stations in x/y directions
+        dx, dy      - spacial interval for x/y
+        x, y        - to define a line for sta.x = x/ sta.y=y
+        network     - network name
         ==============================================
         """
         if xmin!=None and Nx!=None and dx!=None and y!=None:
@@ -191,8 +191,8 @@ class StaLst(object):
         """Write StaLst to sw4 input file.
         ==================================================
         Input Parameters:
-        infname   - sw4 input file name
-        cartesian  - whether x/y is cartesian or geographical coordinate 
+        infname     - sw4 input file name
+        cartesian   - whether x/y is cartesian or geographical coordinate 
         ==================================================
         """
         if cartesian==True:
@@ -215,9 +215,9 @@ class StaLst(object):
         Get obspy inventory, used for ASDF dataset
         ========================================================
         Input Parameters:
-        outfname  - output stationxml file name (default = None, no output)
-        chans        - channel list
-        source       - source string
+        outfname    - output stationxml file name (default = None, no output)
+        chans       - channel list
+        source      - source string
         Output:
         obspy.core.inventory.inventory.Inventory object, stationxml file(optional)
         ========================================================
@@ -247,9 +247,9 @@ class StaLst(object):
         Select a subset of stations from original station list
         =============================================================================
         Input Parameters:
-        x, y                                    - if specified, ONLY  append stations with sta.x == x , sta.y==y
-        x0, y0, dist                        - if specified, ONLY  append stations in/out the circle (x0, y0, radius=dist)
-        outflag                              - True (out the circle) False (in the circle)
+        x, y                    - if specified, ONLY  append stations with sta.x == x , sta.y==y
+        x0, y0, dist            - if specified, ONLY  append stations in/out the circle (x0, y0, radius=dist)
+        outflag                 - True (out the circle) False (in the circle)
         xmin, xmax, ymin, ymax  - x/y range of stations
         =============================================================================
         """

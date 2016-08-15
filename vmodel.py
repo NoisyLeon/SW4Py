@@ -53,18 +53,18 @@ ak135modelCPS.reshape(ak135modelCPS.size)
 class Blockmodel(object):
     """
     An object to handle single block model for SW4
-    =============================================================
+    =========================================================================================
     Parameters:
-    vp, vs                 - P/S wave velocity real > 0 m/s none
-    rho                     - density real > 0 kg/m^3 none
+    vp, vs          - P/S wave velocity real > 0 m/s none
+    rho             - density real > 0 kg/m^3 none
     vpgrad, vsgrad  - vertical gradient for vp/vs real m/s/m none
-    rhograd              - vertical gradient for rho real kg/m^4 none
-    Qp, Qs               - P/S wave quality factor real > 0 none none
-    x1, x2                 - minimum/maximum x-dim for the box shaped sub-region 
-    y1, y2                 - minimum/maximum y-dim for the box shaped sub-region 
-    z1, z2                 - minimum/maximum z-dim for the box shaped sub-region 
-    absdepth           - z1 and z2 relative to topography (0), or absolute z-coordinate (1)
-    =============================================================
+    rhograd         - vertical gradient for rho real kg/m^4 none
+    Qp, Qs          - P/S wave quality factor real > 0 none none
+    x1, x2          - minimum/maximum x-dim for the box shaped sub-region 
+    y1, y2          - minimum/maximum y-dim for the box shaped sub-region 
+    z1, z2          - minimum/maximum z-dim for the box shaped sub-region 
+    absdepth        - z1 and z2 relative to topography (0), or absolute z-coordinate (1)
+    =========================================================================================
     """
     def __init__(self, vp=None, vs=None, rho=None, Qp=None, Qs=None, vpgrad=None, vsgrad=None, rhograd=None,
             absdepth=None, x1=None, x2=None, y1=None, y2=None, z1=None, z2=None):
@@ -138,15 +138,15 @@ class BlockLst(object):
             absdepth=None, x1=None, x2=None, y1=None, y2=None, z1=None, z2=None):
         """
         Add single block to the model.
-        ========================================================================================
+        ===================================================================================================================
         Input Parameters:
-        vs, vp, rho                       - S/P wave velocity, density
-                                                 If vp/rho not specified, vp and rho will be calculated by assuming Brocher crust.
-        Qp, Qs                             - P/S wave quality factor
+        vs, vp, rho             - S/P wave velocity, density
+                                    If vp/rho not specified, vp and rho will be calculated by assuming Brocher crust.
+        Qp, Qs                  - P/S wave quality factor
         vpgrad, vsgrad, rhograd - S/P wave velocity, density gradient( C(z) = C + z*Cgrad, z=0 at surface, NOT at z1)
-        absdepth                         - z1/z2 are relative to topography(0) or absolute z-coordinate
-        x1, x2, y1, y2, z1, z2       - define the block region
-        ========================================================================================
+        absdepth                - z1/z2 are relative to topography(0) or absolute z-coordinate
+        x1, x2, y1, y2, z1, z2  - define the block region
+        ===================================================================================================================
         """
         if vp ==None:
             vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4
@@ -164,7 +164,7 @@ class BlockLst(object):
         =================================================================
         Input Parameters:
         zmax    - maximum depth
-        CPS      - use layered ak135 model used in CPS(homogeneous in each layer) or not
+        CPS     - use layered ak135 model used in CPS(homogeneous in each layer) or not
         =================================================================
         """
         if zmax>660.:
@@ -287,18 +287,18 @@ class BlockLst(object):
 class rBlock(object):
     """
     An object to handle single rfile block model for SW4
-    ===================================================================
+    ===================================================================================================
     Parameters:
-    number                                     - number(index) of rfile block
-    xyextent, xzextent, yzextent  - extent in xy, xz, yz
-    data                                          - data array
+    number                          - number(index) of rfile block
+    xyextent, xzextent, yzextent    - extent in xy, xz, yz
+    data                            - data array
     
-    --------------------------------------------- header variables ----------------------------------------------
-    hh, hv                                      - horizontal/vertical grid spacing
-    z0                                             - upper depth 
-    nc                                             - number of component
-    ni, nj, nk                                  - number of grid point in x, y, z direction
-    ===================================================================
+    ---------------------------------------- header variables ------------------------------------------
+    hh, hv                          - horizontal/vertical grid spacing
+    z0                              - upper depth 
+    nc                              - number of component
+    ni, nj, nk                      - number of grid point in x, y, z direction
+    ===================================================================================================
     Modified from pysw4 by Shahar Shani-Kadmiel
     """
     def __init__(self, number=0, hh=None, hv=None, z0=0.0, nc=3, ni=None, nj=None, nk=None,
@@ -386,14 +386,14 @@ class vprofile(object):
                  z0Arr=np.array([]), HArr=np.array([]), xArr=np.array([]), yArr=np.array([]), dtypeArr=np.array([]) ):
         """
         An object to handle vertical profile, will be used by CPSPy
-        ===================================================================
+        =============================================================================
         output txt format:
-        vs/dvs    vp/dvp    rho/drho    Rmax    Rmin    z0    H    x    y    dtype
+        vs/dvs    vp/dvp    rho/drho    Rmax    Rmin    z0    H    x    y   dtype
         
         dtype:
         0. absolute value for vs/vp/rho
         1. percentage value for dvs/dvp/drho 
-        ===================================================================
+        =============================================================================
         """
         self.vsArr=vsArr
         self.vpArr=vpArr
@@ -522,18 +522,18 @@ class vprofile(object):
 class rModel(object):
     """
     An object to rfile header and blocks for SW4
-    ===================================================================
+    ===================================================================================================
     Parameters:
-    rblocks                          - list of rfile block (rBlock objects)
+    rblocks                 - list of rfile block (rBlock objects)
 
-    --------------------------------------------- header variables ----------------------------------------------
-    magic                            - horizontal/vertical grid spacing
-    precision                       - upper depth 
-    attenuation                   - number of component
-    az, lon0, lat0                 - azimuth / origin of model coordinate
-    proj_str                         - projection string
-    nb                                 - number of blocks
-    ===================================================================
+    ---------------------------------------- header variables ------------------------------------------
+    magic                   - horizontal/vertical grid spacing
+    precision               - upper depth 
+    attenuation             - number of component
+    az, lon0, lat0          - azimuth / origin of model coordinate
+    proj_str                - projection string
+    nb                      - number of blocks
+    ===================================================================================================
     """
     def __init__(self, filename=None, magic=1, precision = 4, attenuation = 0, az = 0., lon0= -118, lat0=37,
                  proj_str  = '+proj=utm +ellps=WGS84 +no_defs', nb = 0, rblocks=None):
@@ -611,8 +611,8 @@ class rModel(object):
         Add topography block as the first block
         ====================================================
         Input Parameters:
-        ni, nj   - number of x/y points
-        hh, hv - horizontal/vertical grid spacing
+        ni, nj  - number of x/y points
+        hh, hv  - horizontal/vertical grid spacing
         data    - input topogrphy data array
         ====================================================
         """
@@ -648,17 +648,17 @@ class rModel(object):
         vs=None, vp=None, rho=None, Qs=None, Qp=None, vsgrad=None, vpgrad=None, rhograd=None, Qsgrad=None, Qpgrad=None):
         """
         Add single rfile block to the model
-        ========================================================================
+        ===========================================================================================================
         Input Parameters:
-        ni, nj, nk     - number of x/y/z points
-        hh, hv         - horizontal/vertical grid spacing
-        z0                - upper z coordinate
+        ni, nj, nk      - number of x/y/z points
+        hh, hv          - horizontal/vertical grid spacing
+        z0              - upper z coordinate
         data            - input velocity data array
-        vs, vp, rho   - S/P wave velocity, density
+        vs, vp, rho     - S/P wave velocity, density
                              If vp/rho not specified, vp and rho will be calculated by assuming Brocher crust.
-        Qp, Qs         - P/S wave quality factor
+        Qp, Qs          - P/S wave quality factor
         *grad           - gradient ( C(z) = C + (z-z0)*Cgrad )
-        ========================================================================
+        ===========================================================================================================
         """
         if self.attenuation ==1:
             nc=5
@@ -757,13 +757,13 @@ class rModel(object):
     def ak135(self, ni, nj, zmin=0., zmax=410.,  hh=None, hv=None, CPS=True):
         """
         Implement ak135 model
-        ====================================================
+        ============================================================
         Input Parameters:
-        ni, nj            - number of x/y points
+        ni, nj      - number of x/y points
         zmin, zmax  - manimum/maximum depth
-        hh, hv          - horizontal/vertical grid spacing
-        CPS              - whether to use layered ak135 from CPS or not
-        ====================================================
+        hh, hv      - horizontal/vertical grid spacing
+        CPS         - whether to use layered ak135 from CPS or not
+        ============================================================
         """
         if zmax>660.:
             raise ValueError('Depth is too large for Cartesian simulation.')
@@ -877,13 +877,13 @@ class rModel(object):
     def BlockAnomaly(self, xmin, xmax, ymin, ymax, dm, mname='vs', zmin=0, zmax=None, nb=None):
         """
         Implement block anomaly
-        ========================================================================
+        ============================================================================
         Input Parameters:
-        xmin, xmax, ymin, ymax, zmin, zmax   - defines the bound (in meter)
-        dm                                                           - model parameter anomaly in percentage
-        mname                                                    - model variable name
-        nb                                                            - block number(index)
-        ========================================================================
+        xmin, xmax, ymin, ymax, zmin, zmax  - defines the bound (in meter)
+        dm                                  - model parameter anomaly in percentage
+        mname                               - model variable name
+        nb                                  - block number(index)
+        ============================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
         mtype=dictparam[mname]
@@ -932,12 +932,12 @@ class rModel(object):
         Inplement homogeneous cylinder anomaly
         ========================================================================
         Input Parameters:
-        x0, y0             - the center of the circle( in meter)
-        R                   - radius (in meter)
-        dm                 - model parameter anomaly in percentage
-        mname         - model variable name
-        zmin, zmax   - defines the upper/lower bound (in meter)
-        nb                 - block number(index)
+        x0, y0      - the center of the circle( in meter)
+        R           - radius (in meter)
+        dm          - model parameter anomaly in percentage
+        mname       - model variable name
+        zmin, zmax  - defines the upper/lower bound (in meter)
+        nb          - block number(index)
         ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
@@ -996,12 +996,12 @@ class rModel(object):
         Inplement linear varying cylinder anomaly
         ========================================================================
         Input Parameters:
-        x0, y0             - the center of the circle( in meter)
-        R                   - radius (in meter)
-        dm                 - model parameter anomaly in percentage
-        mname         - model variable name
-        zmin, zmax   - defines the upper/lower bound (in meter)
-        nb                  - block number(index)
+        x0, y0      - the center of the circle( in meter)
+        R           - radius (in meter)
+        dm          - model parameter anomaly in percentage
+        mname       - model variable name
+        zmin, zmax  - defines the upper/lower bound (in meter)
+        nb          - block number(index)
         ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
@@ -1051,12 +1051,12 @@ class rModel(object):
         Inplement cosine varying cylinder anomaly.
         ========================================================================
         Input Parameters:
-        x0, y0             - the center of the circle( in meter)
-        R                   - radius (in meter)
-        dm                 - model parameter anomaly in percentage
-        mname         - model variable name
-        zmin, zmax   - defines the upper/lower bound (in meter)
-        nb                  - block number(index)
+        x0, y0      - the center of the circle( in meter)
+        R           - radius (in meter)
+        dm          - model parameter anomaly in percentage
+        mname       - model variable name
+        zmin, zmax  - defines the upper/lower bound (in meter)
+        nb          - block number(index)
         ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
@@ -1108,10 +1108,10 @@ class rModel(object):
         Implement cylindrical sedimentary basin with constant depth to the first rblock.
         ========================================================================
         Input Parameters:
-        x0, y0       - the center of the circle( in meter)
-        R              - radius (in meter)
+        x0, y0      - the center of the circle( in meter)
+        R           - radius (in meter)
         zmax        - maximum depth of the basin (in meter)
-        vs             - vs for the basin (in m/s)
+        vs          - vs for the basin (in m/s)
         vp, rho     - vp/rho for the basin (default is Brocher Crust)
         ========================================================================
         """
@@ -1150,10 +1150,10 @@ class rModel(object):
         Implement cosine varying cylindrical sedimentary basin to the first rblock.
         ========================================================================
         Input Parameters:
-        x0, y0       - the center of the circle( in meter)
-        R              - radius (in meter)
+        x0, y0      - the center of the circle( in meter)
+        R           - radius (in meter)
         zmax        - maximum depth of the basin (in meter)
-        vs             - vs for the basin (in m/s)
+        vs          - vs for the basin (in m/s)
         vp, rho     - vp/rho for the basin (default is Brocher Crust)
         ========================================================================
         """
@@ -1190,15 +1190,15 @@ class rModel(object):
         Implement cosine varying cylindrical sedimentary basin to the first rblock.
         ========================================================================
         Input Parameters:
-        x0, y0        - the center of the circle( in meter)
-        zmax         - maximum depth of the basin (in meter)
+        x0, y0      - the center of the circle( in meter)
+        zmax        - maximum depth of the basin (in meter)
         Rmax        - maximum radius (in meter)
         Rmin        - minimum radius (in meter)
-        nr              - number of rings
-        dR             - ring interval
-        vs              - vs for the basin (in m/s)
-        vp, rho      - vp/rho for the basin (default is Brocher Crust)
-        outfname  - output txt file for CPSPy 
+        nr          - number of rings
+        dR          - ring interval
+        vs          - vs for the basin (in m/s)
+        vp, rho     - vp/rho for the basin (default is Brocher Crust)
+        outfname    - output txt file for CPSPy 
         ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
