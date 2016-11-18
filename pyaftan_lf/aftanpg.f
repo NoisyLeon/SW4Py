@@ -116,7 +116,8 @@ c number of FTAN filters
       nf = nfin
 c automatic width of filters * factor ffact
 ccc     alpha = ffact*20.0d0*dsqrt(delta/1000.0d0) Modified by LF
-      alpha = ffact*20.0d0*dsqrt(delta/1000.0d0) 
+ccc     alpha = ffact*20.0d0*dsqrt(delta/1000.0d0) LFLFLF
+      alpha = ffact*20.0d0*dsqrt(1000.0d0/1000.0d0)
 c  number of samples for tapering, left end
       ntapb = nint(taperl*tmax/dt)
 c  number of samples for tapering, right end
@@ -317,6 +318,7 @@ c find all jumps
         enddo
 c main loop by jumps
         if(nii.ne.0) then
+          !write (*,*) 0
           do ki = 1,nii
              kk = ii(ki)
              do i = 1,nf

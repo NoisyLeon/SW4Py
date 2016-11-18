@@ -1,9 +1,10 @@
 import vmodel
 import numpy as np
-rmodel=vmodel.rModel();
-rmodel.ak135(zmin=0., zmax=660., ni=631, nj=601, hh=500., hv=500.)
+rmodel=vmodel.rModel(attenuation =1)
+rmodel.ak135(zmin=0., zmax=660., ni=631, nj=601, hh=1000., hv=1000.)
+rmodel.CylinderCosineSediment(x0=100000, y0=200000, R=200000, zmax=4000, vs=2000., qs=40.)
 
-rmodel.CylinderCosineAnomaly(x0=100000, y0=200000, R=50000,  dm=-0.2, mname='vs', zmin=0, zmax=25000, nb=2)
+# rmodel.CylinderCosineAnomaly(x0=100000, y0=200000, R=50000,  dm=-0.2, mname='vs', zmin=0, zmax=25000, nb=2)
 # hArr=rmodel.CylinderCosineSediment(x0=100000, y0=200000, R=50000, vs=1500., zmax=10000.)
 # rmodel.write('/lustre/janus_scratch/life9360/sw4_working_dir_trials/test_rmodel_001.rfile')
 # rmodel.AddSingleBlock(ni=101, nj=101, nk=20, hh=20, hv=20, z0=None, #data=np.array([]),

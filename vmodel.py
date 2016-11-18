@@ -697,37 +697,22 @@ class rModel(object):
             data=np.array([])
         
         if data.size == 0:
-            if vs < 100.:
-                warnings.warn('Double check vs, the unit is m/s!', UserWarning, stacklevel=1)
-            else:
-                vs=vs/1000.
-            if vp ==None:
-                vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4 #Brocher Crust
-            if vp < 100.:
-                warnings.warn('Double check vp, the unit is m/s!', UserWarning, stacklevel=1)
-            else:
-                vp=vp/1000.
-            if rho==None:
-                rho=1.6612*vp-0.4721*vp**2+0.0671*vp**3-0.0043*vp**4+0.000106*vp**5 #Brocher Crust
-            if vs < 100.:
-                vs=vs*1000.
-            if vp < 100.:
-                vp=vp*1000.
-            if rho < 100.:
-                rho=rho*1000.
+            if vs < 100.: warnings.warn('Double check vs, the unit is m/s!', UserWarning, stacklevel=1)
+            else: vs=vs/1000.
+            if vp ==None: vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4 #Brocher Crust
+            if vp < 100.: warnings.warn('Double check vp, the unit is m/s!', UserWarning, stacklevel=1)
+            else: vp=vp/1000.
+            if rho==None: rho=1.6612*vp-0.4721*vp**2+0.0671*vp**3-0.0043*vp**4+0.000106*vp**5 #Brocher Crust
+            if vs < 100.: vs=vs*1000.
+            if vp < 100.: vp=vp*1000.
+            if rho < 100.: rho=rho*1000.
+            if vsgrad==None: vsArr = np.ones(nk)*vs
+            else: vsArr = np.ones(nk)*vs + np.arange(nk)*hv*vsgrad
+            if vpgrad==None: vpArr = np.ones(nk)*vp
+            else: vpArr = np.ones(nk)*vp + np.arange(nk)*hv*vpgrad
+            if rhograd==None: rhoArr = np.ones(nk)*rho
+            else: rhoArr = np.ones(nk)*rho + np.arange(nk)*hv*rhograd
             
-            if vsgrad==None:
-                vsArr = np.ones(nk)*vs
-            else:
-                vsArr = np.ones(nk)*vs + np.arange(nk)*hv*vsgrad
-            if vpgrad==None:
-                vpArr = np.ones(nk)*vp
-            else:
-                vpArr = np.ones(nk)*vp + np.arange(nk)*hv*vpgrad
-            if rhograd==None:
-                rhoArr = np.ones(nk)*rho
-            else:
-                rhoArr = np.ones(nk)*rho + np.arange(nk)*hv*rhograd
             Vprofile = np.append(rhoArr, vpArr)
             Vprofile = np.append(Vprofile, vsArr)
             if nc == 5:
@@ -754,7 +739,7 @@ class rModel(object):
                 xyextent=xyextent, xzextent=xzextent, yzextent = yzextent, data=data) )
         return
     
-    def ak135(self, ni, nj, zmin=0., zmax=410.,  hh=None, hv=None, CPS=True):
+    def ak135(self, ni, nj, zmin=0., zmax=410.,  hh=None, hv=None, CPS=False):
         """
         Implement ak135 model
         ============================================================
@@ -1145,7 +1130,7 @@ class rModel(object):
         return 
     
     
-    def CylinderCosineSediment(self, x0, y0, R, zmax, vs, vp=None, rho=None ):
+    def CylinderCosineSediment(self, x0, y0, R, zmax, vs=None, vp=None, rho=None, qs=None ):
         """
         Implement cosine varying cylindrical sedimentary basin to the first rblock.
         ========================================================================
@@ -1164,33 +1149,45 @@ class rModel(object):
         if zmax > zArr.max():
             raise ValueError('Maximum depth of sedimentary basin is too large!')
         xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij')
-        vs=vs/1000.
-        if vp ==None:
-            vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4
-        if rho==None:
-            rho=1.6612*vp-0.4721*vp**2+0.0671*vp**3-0.0043*vp**4+0.000106*vp**5
-        vs=vs*1000.
-        vp=vp*1000.
-        rho=rho*1000.
-        tempdataVs=self.rblocks[1].data[:, :, :, 2]
-        tempdataVp=self.rblocks[1].data[:, :, :, 1]
-        tempdataRho=self.rblocks[1].data[:, :, :, 0]
         dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
         Rindex = (dArr <= R)
         zmaxArr= Rindex * ( 1+np.cos( np.pi* dArr / R ) ) /2.* zmax
         zIndexT = (zgrid <= zmaxArr)*Rindex
         zIndexB = np.logical_not(zIndexT)
-        self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
-        self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
-        self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
+        if vs!=None:
+            vs=vs/1000.
+            if vp ==None:
+                vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4
+            if rho==None:
+                rho=1.6612*vp-0.4721*vp**2+0.0671*vp**3-0.0043*vp**4+0.000106*vp**5
+            vs=vs*1000.
+            vp=vp*1000.
+            rho=rho*1000.
+            tempdataVs=self.rblocks[1].data[:, :, :, 2]
+            tempdataVp=self.rblocks[1].data[:, :, :, 1]
+            tempdataRho=self.rblocks[1].data[:, :, :, 0]
+            self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
+            self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
+            self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
+        else:
+            vs=self.rblocks[1].data[0, 0, 0, 2]
+            vp=self.rblocks[1].data[0, 0, 0, 1]
+        if self.attenuation==1 and qs!=None:
+            tempdataQs=self.rblocks[1].data[:, :, :, 4]
+            tempdataQp=self.rblocks[1].data[:, :, :, 3]
+            qp=3/4.*qs*(vp/vs)**2
+            self.rblocks[1].data[:, :, :, 4] = zIndexT * qs+ tempdataQs*zIndexB
+            self.rblocks[1].data[:, :, :, 3] = zIndexT * qp+ tempdataQp*zIndexB
         return
+    
+    
     
     def CynlinderRingBasin(self, x0, y0, zmax, Rmax, vs, vp=None, rho=None, nr=None, dR=None, Rmin=0, outfname=None):
         """
         Implement cosine varying cylindrical sedimentary basin to the first rblock.
         ========================================================================
         Input Parameters:
-        x0, y0      - the center of the circle( in meter)
+        x0, y0      - the center of the circle ( in meter)
         zmax        - maximum depth of the basin (in meter)
         Rmax        - maximum radius (in meter)
         Rmin        - minimum radius (in meter)
@@ -1209,10 +1206,8 @@ class rModel(object):
             raise ValueError('Maximum depth of sedimentary basin is too large!')
         xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij')
         vs=vs/1000.
-        if vp ==None:
-            vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4
-        if rho==None:
-            rho=1.6612*vp-0.4721*vp**2+0.0671*vp**3-0.0043*vp**4+0.000106*vp**5
+        if vp ==None: vp=0.9409+2.0947*vs-0.8206*vs**2+0.2683*vs**3-0.0251*vs**4
+        if rho==None: rho=1.6612*vp-0.4721*vp**2+0.0671*vp**3-0.0043*vp**4+0.000106*vp**5
         vs=vs*1000.
         vp=vp*1000.
         rho=rho*1000.
@@ -1381,7 +1376,7 @@ class rModel(object):
                 warnings.warn('Incompatible ni='+str(rblock.ni) +' nx='+str(nx)+' nj='+str(rblock.nj)+' ny='+str(ny), UserWarning, stacklevel=1)
         if rblock.hv * (rblock.nk-1) + rblock.z0 < (nz-1) * h:
             raise ValueError('Depth size too small !')
-        print '===========  Checked input with rfile  ==========='
+        print '=========== Checked input with rfile  ==========='
         return 
         
 

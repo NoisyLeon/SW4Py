@@ -155,7 +155,8 @@ class StaLst(object):
                 y=ymin+dy*j;
                 stacode=str(int(i))+'S'+str(int(j));
                 self.append(StaInfo (stacode=stacode, network=network, x=x, y=y, z=z, usgsformat=usgsformat,
-                    sacformat=sacformat, writeEvery=writeEvery, nsew=nsew, variables=variables ));
+                    sacformat=sacformat, writeEvery=writeEvery, nsew=nsew, variables=variables ))
+        print 'xmax =',x,' ymax =',y
         return;
     
     def LineStaLst(self, xmin=None, Nx=None, dx=None, y=None, ymin=None, Ny=None, dy=None, x=None, network='SW4', z=0,
