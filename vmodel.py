@@ -739,7 +739,7 @@ class rModel(object):
                 xyextent=xyextent, xzextent=xzextent, yzextent = yzextent, data=data) )
         return
     
-    def ak135(self, ni, nj, zmin=0., zmax=410.,  hh=None, hv=None, CPS=False):
+    def ak135(self, ni, nj, zmin=0., zmax=410.,  hh=None, hv=None, CPS=True):
         """
         Implement ak135 model
         ============================================================
@@ -780,10 +780,8 @@ class rModel(object):
         modelArr[:,2]=modelArr[:,2]*1000.
         modelArr[:,3]=modelArr[:,3]*1000.
         for i in np.arange(21):
-            if modelArr[i,0]==modelArr[i+1,0]:
-                continue
-            if modelArr[i+1,0]<zmin:
-                continue
+            if modelArr[i,0]==modelArr[i+1,0]: continue
+            if modelArr[i+1,0]<zmin: continue
             if zmax <= modelArr[i+1,0]:
                 if i==0:
                     rho=modelArr[0,1]
@@ -912,7 +910,7 @@ class rModel(object):
             self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*xindex*yindex*zindex
         return
     
-    def CylinderHomoAnomaly(self, x0, y0, R, dm, mname='vs', zmin=0, zmax=None, nb=None):
+    def CylinderHomoAnomaly(self, x0, y0, R, dm, va=None, mname='vs', zmin=0, zmax=None, nb=None):
         """
         Inplement homogeneous cylinder anomaly
         ========================================================================
@@ -920,17 +918,19 @@ class rModel(object):
         x0, y0      - the center of the circle( in meter)
         R           - radius (in meter)
         dm          - model parameter anomaly in percentage
+        va          - absolute value of velocity of the anomaly
         mname       - model variable name
         zmin, zmax  - defines the upper/lower bound (in meter)
         nb          - block number(index)
+        ------------------------------------------------------------------------
+        Version History:
+                    Nov 28th, 2016  - add va to the function
         ========================================================================
         """
         dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
         mtype=dictparam[mname]
-        if nb!=1:
-            print 'Adding homogeneous cynlinder anomaly to',mname,'!'
-        else:
-            print 'Adding homogeneous cynlinder to topography !'
+        if nb!=1: print 'Adding homogeneous cynlinder anomaly to',mname,'!'
+        else: print 'Adding homogeneous cynlinder to topography !'
         if nb==None:
             for b in np.arange(self.nb-1)+1:
                 xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
@@ -943,11 +943,12 @@ class rModel(object):
                 tempdata=self.rblocks[b].data[:, :, :, mtype]
                 dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
                 Rindex = dArr < R
-                if zmax==None:
-                    zindex=zgrid>=zmin
-                else:
-                    zindex=(zgrid>=zmin)*(zgrid<=zmax)
-                self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rindex*zindex
+                if zmax==None: zindex=zgrid>=zmin
+                else: zindex=(zgrid>=zmin)*(zgrid<zmax)
+                # # # self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rindex*zindex OLD
+                if va ==None: tempdata[Rindex*zindex]=tempdata[Rindex*zindex]*(1+dm)
+                else: tempdata[Rindex*zindex]=va
+                self.rblocks[b].data[:, :, :, mtype] = tempdata
         else:
             b=nb-1
             xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
@@ -958,16 +959,15 @@ class rModel(object):
             dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
             Rindex = dArr <= R;
             if b!=0:
-                if zmax==None:
-                   zindex=zgrid>=zmin
-                else:
-                   zindex=(zgrid>=zmin)*(zgrid<=zmax)
-            else:
-                zindex=1.;
-            self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rindex*zindex
+                if zmax==None: zindex=zgrid>=zmin
+                else: zindex=(zgrid>=zmin)*(zgrid<zmax)
+            else: zindex=1.;
+            # # # self.rblocks[b].data[:, :, :, mtype] = tempdata + tempdata*dm*Rindex*zindex OLD
+            if va ==None: tempdata[Rindex*zindex]=tempdata[Rindex*zindex]*(1+dm)
+            else: tempdata[Rindex*zindex]=va
+            self.rblocks[b].data[:, :, :, mtype] = tempdata
         ### Add anomaly to vprofile object
-        if zmax==None:
-            zmax=9999.
+        if zmax==None: zmax=9999.
         if mname=='vs':
             self.Vprofile.add(Rmax=R, Rmin=0., z0=zmin, H=zmax-zmin, x=x0, y=y0, dtype=1, vs=dm)
         elif mname=='vp':
@@ -1126,9 +1126,8 @@ class rModel(object):
         self.rblocks[1].data[:, :, :, 0] = zIndexT * rho+ tempdataRho*zIndexB
         self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
         self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
-        
+        self.Vprofile.add(Rmax=R, Rmin=0, z0=0., H=zmax, x=x0, y=y0, dtype=0, vs=vs, vp=vp, rho=rho)
         return 
-    
     
     def CylinderCosineSediment(self, x0, y0, R, zmax, vs=None, vp=None, rho=None, qs=None ):
         """
@@ -1179,8 +1178,6 @@ class rModel(object):
             self.rblocks[1].data[:, :, :, 4] = zIndexT * qs+ tempdataQs*zIndexB
             self.rblocks[1].data[:, :, :, 3] = zIndexT * qp+ tempdataQp*zIndexB
         return
-    
-    
     
     def CynlinderRingBasin(self, x0, y0, zmax, Rmax, vs, vp=None, rho=None, nr=None, dR=None, Rmin=0, outfname=None):
         """
@@ -1247,9 +1244,121 @@ class rModel(object):
         self.rblocks[1].data[:, :, :, 1] = zIndexT * vp+ tempdataVp*zIndexB
         self.rblocks[1].data[:, :, :, 2] = zIndexT * vs+ tempdataVs*zIndexB
         self.Vprofile.add(Rmax=RmaxArr, Rmin=RminArr, z0=0., H=HArr, x=x0, y=y0, dtype=0, vs=vs, vp=vp, rho=rho)
-        if outfname != None:
-            self.Vprofile.write(outfname=outfname)
-        return 
+        if outfname != None: self.Vprofile.write(outfname=outfname)
+        return
+    
+    def CylinderLinearDepthAnomaly(self, x0, y0, R, vt, vb, zmax, mname='vs', zmin=0, nb=None, outfname=None):
+        """
+        Inplement linear varying cylinder anomaly
+        ========================================================================
+        Input Parameters:
+        x0, y0      - the center of the circle( in meter)
+        R           - radius (in meter)
+        dm          - model parameter anomaly in percentage
+        mname       - model variable name
+        zmin, zmax  - defines the upper/lower bound (in meter)
+        nb          - block number(index)
+        ========================================================================
+        """
+        dictparam={'rho':0, 'vp': 1 , 'vs': 2 , 'qp': 3 , 'qs': 4 }
+        mtype=dictparam[mname]
+        if nb!=1: print 'Adding homogeneous cynlinder anomaly to',mname,'!'
+        else: print 'Adding homogeneous cynlinder to topography !'
+        tzArr=np.array([])
+        if nb==None:
+            for b in np.arange(self.nb-1)+1:
+                xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+                yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+                zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv + self.rblocks[b].z0
+                tzArr = np.append(tzArr, zArr[(zArr>=zmin)*(zArr<=zmax)])
+                # meshgrid notes: 
+                # In the 3-D case with inputs of length M, N and P,
+                # outputs are of shape (N, M, P) for 'xy' indexing and (M, N, P) for 'ij' indexing.
+                xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
+                tempdata=self.rblocks[b].data[:, :, :, mtype]
+                dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+                Rindex = dArr < R
+                if zmax==None: zindex=zgrid>=zmin
+                else: zindex=(zgrid>=zmin)*(zgrid<=zmax)
+                vArr = zgrid / (zmax-zmin) * (vb-vt) + vt
+                tempdata[Rindex*zindex]=vArr[Rindex*zindex]
+                self.rblocks[b].data[:, :, :, mtype] = tempdata
+        else:
+            b=nb-1
+            xArr=np.arange(self.rblocks[b].ni)*self.rblocks[b].hh
+            yArr=np.arange(self.rblocks[b].nj)*self.rblocks[b].hh
+            zArr=np.arange(self.rblocks[b].nk)*self.rblocks[b].hv
+            tzArr = np.append(tzArr, zArr[(zArr>=zmin)*(zArr<=zmax)])
+            xgrid, ygrid, zgrid = np.meshgrid(xArr, yArr, zArr, indexing='ij') 
+            tempdata=self.rblocks[b].data[:, :, :, mtype]
+            dArr = np.sqrt( (xgrid-x0)**2 + (ygrid-y0)**2)
+            Rindex = dArr <= R;
+            if b!=0:
+                if zmax==None: zindex=zgrid>=zmin
+                else: zindex=(zgrid>=zmin)*(zgrid<=zmax)
+            else: zindex=1.;
+            vArr = zgrid / (zmax-zmin) * (vb-vt) + vt
+            tempdata[Rindex*zindex]=vArr[Rindex*zindex]
+            self.rblocks[b].data[:, :, :, mtype] = tempdata
+        if outfname !=None:
+            zArrT=tzArr[:-1]; zArrB=tzArr[1:]
+            zArrm = (zArrB + zArrT)/2.
+            HArr = zArrB - zArrT
+            vHArr = zArrm / (zmax-zmin) * (vb-vt) + vt
+            outArr = np.append(zArrT/1000., HArr/1000.)
+            outArr = np.append(outArr, vHArr/1000.)
+            outArr = outArr.reshape(3, HArr.size)
+            outArr = outArr.T
+            np.savetxt(outfname, outArr, fmt='%g', header='z0 H vs')
+        else:
+            self.tzArr=tzArr
+        return
+    
+    def CylinderLinearDepthAnomalyAll(self, x0, y0, R, vt, vb, zmax, zmin=0, nb=None, outfname=None):
+        """
+        Inplement linear varying cylinder anomaly
+        ========================================================================
+        Input Parameters:
+        x0, y0      - the center of the circle( in meter)
+        R           - radius (in meter)
+        dm          - model parameter anomaly in percentage
+        mname       - model variable name
+        zmin, zmax  - defines the upper/lower bound (in meter)
+        nb          - block number(index)
+        ========================================================================
+        """
+        # top model parameters
+        vst=vt/1000.
+        vpt=0.9409+2.0947*vst-0.8206*vst**2+0.2683*vst**3-0.0251*vst**4
+        rhot=1.6612*vpt-0.4721*vpt**2+0.0671*vpt**3-0.0043*vpt**4+0.000106*vpt**5
+        vst=vst*1000.
+        vpt=vpt*1000.
+        rhot=rhot*1000.
+        # bottom model parameters
+        vsb=vb/1000.
+        vpb=0.9409+2.0947*vsb-0.8206*vsb**2+0.2683*vsb**3-0.0251*vsb**4
+        rhob=1.6612*vpb-0.4721*vpb**2+0.0671*vpb**3-0.0043*vpb**4+0.000106*vpb**5
+        vsb=vsb*1000.
+        vpb=vpb*1000.
+        rhob=rhob*1000.
+        self.CylinderLinearDepthAnomaly(x0=x0, y0=y0, R=R, vt=vst, vb=vsb, zmax=zmax, mname='vs', zmin=zmin, nb=nb)
+        self.CylinderLinearDepthAnomaly(x0=x0, y0=y0, R=R, vt=vpt, vb=vpb, zmax=zmax, mname='vp', zmin=zmin, nb=nb)
+        self.CylinderLinearDepthAnomaly(x0=x0, y0=y0, R=R, vt=rhot, vb=rhob, zmax=zmax, mname='rho', zmin=zmin, nb=nb)
+        if outfname !=None:
+            zArrT  = self.tzArr[:-1]; zArrB=self.tzArr[1:]
+            zArrm  = (zArrB + zArrT)/2.
+            HArr   = zArrB - zArrT
+            vsHArr = zArrm / (zmax-zmin) * (vsb-vst) + vst
+            vpHArr = zArrm / (zmax-zmin) * (vpb-vpt) + vpt
+            rhoHArr= zArrm / (zmax-zmin) * (rhob-rhot) + rhot
+            outArr = np.append(zArrT/1000., HArr/1000.)
+            outArr = np.append(outArr, vsHArr/1000.)
+            outArr = np.append(outArr, vpHArr/1000.)
+            outArr = np.append(outArr, rhoHArr/1000.)
+            outArr = outArr.reshape(5, HArr.size)
+            outArr = outArr.T
+            np.savetxt(outfname, outArr, fmt='%g', header='z0 H vs vp rho')
+        return
     
     def read_hdr(self, f):
         """
@@ -1355,7 +1464,6 @@ class rModel(object):
         return
         
     def checkInput(self, infname):
-        # grid h=1000 nx=2001 ny=2001 nz=201 proj=utm ellps=WGS84
         print '=========== Checking input with rfile ==========='
         with open(infname, 'rb') as f:
             for line in f.readlines():
@@ -1375,6 +1483,7 @@ class rModel(object):
             if rblock.ni != nx or rblock.nj !=ny:
                 warnings.warn('Incompatible ni='+str(rblock.ni) +' nx='+str(nx)+' nj='+str(rblock.nj)+' ny='+str(ny), UserWarning, stacklevel=1)
         if rblock.hv * (rblock.nk-1) + rblock.z0 < (nz-1) * h:
+            print rblock.hv * (rblock.nk-1) + rblock.z0 , (nz-1) * h
             raise ValueError('Depth size too small !')
         print '=========== Checked input with rfile  ==========='
         return 

@@ -2,11 +2,11 @@ import symdata
 # import noisepy as npy
 import obspy
 
-dtype='R_200km_zmax_4km_qs_40_vs_ak135'
-dbase=symdata.sw4ASDF('/lustre/janus_scratch/life9360/sw4_working_dir_Q/sw4synthetics_'+dtype+'.h5')
+dtype='single_staircase_basin'
+dbase=symdata.sw4ASDF('/lustre/janus_scratch/life9360/sw4_working_dir_4mem2d/sw4synthetics_'+dtype+'.h5')
 
-dbase.Readsac('/lustre/janus_scratch/life9360/sw4_working_dir_Q/sta_Q.lst',\
-            datadir='/lustre/janus_scratch/life9360/sw4_working_dir_Q/'+dtype, comptype='u', verbose=True)
+dbase.Readsac('/lustre/janus_scratch/life9360/sw4_working_dir_4mem2d/station_4mem2d.lst',\
+            datadir='/lustre/janus_scratch/life9360/sw4_working_dir_4mem2d/'+dtype, comptype='u', verbose=True)
 try:
     del dbase.events
 except:
@@ -39,9 +39,9 @@ dbase.InterpDisp(data_type='DISPpmf2')
 # # dbase.AddEvent(x=1000, y=1000, z=0)
 # 
 # del dbase.auxiliary_data.FieldDISPbasic1interp
-dbase.GetField(outdir='/lustre/janus_scratch/life9360/sw4_working_dir_Q/field_'+dtype,\
+dbase.GetField(outdir='/lustre/janus_scratch/life9360/sw4_working_dir_4mem2d/field_'+dtype,\
                fieldtype='amp', data_type='DISPpmf2')
-dbase.GetField(outdir='/lustre/janus_scratch/life9360/sw4_working_dir_Q/field_'+dtype,\
+dbase.GetField(outdir='/lustre/janus_scratch/life9360/sw4_working_dir_4mem2d/field_'+dtype,\
                fieldtype='Vgr',  data_type='DISPpmf2')
 
 # # 
